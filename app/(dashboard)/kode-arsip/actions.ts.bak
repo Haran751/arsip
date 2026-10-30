@@ -1,0 +1,52 @@
+'use server'
+
+import { auth } from '@/auth'
+import { prisma } from '@/lib/prisma'
+import { kodeArsipSchema } from '@/lib/validations'
+import { withAuditContext } from '@/lib/audit-context'
+import { revalidatePath } from 'next/cache'
+
+export async function createKodeArsip(formData: FormData) {
+  const session = await auth()
+  if (!session?.user || (session.user as any).must_change_password) throw new Error('Tidak diizinkan')
+  const role = (session.user as any).role
+  if (role !== 'Admin' && role !== 'Operator') throw new Error('Tidak diizinkan')
+
+  const raw = Object.fromEntries(formData)
+  const parsed = kodeArsipSchema.parse(raw)
+  const userId = (session.user as any).id
+
+  await withAuditContext(userId, async (tx) => {
+    await tx.kodeArsip.create({ data: parsed as any })
+  })
+  revalidatePath('/kode-arsip')
+}
+
+export async function updateKodeArsip(id: string, formData: FormData) {
+  const session = await auth()
+  if (!session?.user || (session.user as any).must_change_password) throw new Error('Tidak diizinkan')
+  const role = (session.user as any).role
+  if (role !== 'Admin' && role !== 'Operator') throw new Error('Tidak diizinkan')
+
+  const raw = Object.fromEntries(formData)
+  const parsed = kodeArsipSchema.parse(raw)
+  const userId = (session.user as any).id
+
+  await withAuditContext(userId, async (tx) => {
+    await tx.kodeArsip.update({ where: { id }, data: parsed as any })
+  })
+  revalidatePath('/kode-arsip')
+}
+
+export async function deleteKodeArsip(id: string) {
+  const session = await auth()
+  if (!session?.user || (session.user as any).must_change_password) throw new Error('Tidak diizinkan')
+  const role = (session.user as any).role
+  if (role !== 'Admin') throw new Error('Hanya Admin')
+
+  const userId = (session.user as any).id
+  await withAuditContext(userId, async (tx) => {
+    await tx.kodeArsip.delete({ where: { id } })
+  })
+  revalidatePath('/kode-arsip')
+}

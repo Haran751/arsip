@@ -313,6 +313,7 @@ export function DemoProvider({ initialUser, children }: { initialUser: DemoUser;
         status_retensi: hitung.status,
         akhir_retensi: hitung.akhirRetensi,
         pembuat: existing?.pembuat ?? currentUser.nama,
+        created_at: existing?.created_at ?? nowIso(),
         keterangan: input.keterangan?.trim() || undefined,
         file_name: input.file_name || existing?.file_name,
         file_size: input.file_size ?? existing?.file_size,

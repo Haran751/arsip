@@ -31,6 +31,7 @@ export type Arsip = {
   status_retensi: StatusRetensi;
   akhir_retensi: string;
   pembuat: string;
+  created_at?: string;
   keterangan?: string;
   file_name?: string;
   file_size?: number;

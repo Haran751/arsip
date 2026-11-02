@@ -1,13 +1,33 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import Drawer from "@/components/drawer";
+import Icon from "@/components/icon";
 import Modal from "@/components/modal";
 import StatusBadge from "@/components/status-badge";
-import { formatTanggal, type Arsip } from "@/lib/demo-data";
+import { formatTanggal, formatWaktu, inisial, type Arsip } from "@/lib/demo-data";
 import { useDemo, type ArsipInput } from "@/lib/demo-store";
 import { downloadDokumenDemo, formatBytes } from "@/lib/export";
+import { hitungRetensi } from "@/lib/retensi";
 
-const PAGE_SIZE = 5;
+const PAGE_SIZE = 8;
+
+const BULAN = [
+  ["01", "Januari"],
+  ["02", "Februari"],
+  ["03", "Maret"],
+  ["04", "April"],
+  ["05", "Mei"],
+  ["06", "Juni"],
+  ["07", "Juli"],
+  ["08", "Agustus"],
+  ["09", "September"],
+  ["10", "Oktober"],
+  ["11", "November"],
+  ["12", "Desember"],
+];
+
+type ModeTanggal = "" | "satu" | "rentang";
 
 type FormState = {
   nomor_arsip: string;
@@ -28,15 +48,20 @@ function today() {
 }
 
 export default function ArsipPage() {
-  const { data, canManage, saveArsip, deleteArsip, nextNomorArsip, catatLog, toast } = useDemo();
+  const { ready, data, canManage, saveArsip, deleteArsip, nextNomorArsip, catatLog, toast } = useDemo();
   const [cari, setCari] = useState("");
   const [tahun, setTahun] = useState("");
+  const [bulan, setBulan] = useState("");
   const [status, setStatus] = useState("");
   const [kode, setKode] = useState("");
+  const [pengguna, setPengguna] = useState("");
+  const [modeTanggal, setModeTanggal] = useState<ModeTanggal>("");
+  const [tanggal1, setTanggal1] = useState("");
+  const [tanggal2, setTanggal2] = useState("");
   const [page, setPage] = useState(1);
   const [formOpen, setFormOpen] = useState(false);
   const [editing, setEditing] = useState<Arsip | null>(null);
-  const [detail, setDetail] = useState<Arsip | null>(null);
+  const [detailId, setDetailId] = useState<string | null>(null);
   const [hapus, setHapus] = useState<Arsip | null>(null);
   const [form, setForm] = useState<FormState>({
     nomor_arsip: "",
@@ -48,9 +73,15 @@ export default function ArsipPage() {
     file_type: "",
   });
   const [formError, setFormError] = useState("");
+  const paramsHandled = useRef(false);
 
   const daftarTahun = useMemo(
     () => Array.from(new Set(data.arsip.map((arsip) => arsip.tanggal_arsip.slice(0, 4)))).sort().reverse(),
+    [data.arsip],
+  );
+
+  const daftarPengguna = useMemo(
+    () => Array.from(new Set(data.arsip.map((arsip) => arsip.pembuat))).sort(),
     [data.arsip],
   );
 
@@ -62,12 +93,23 @@ export default function ArsipPage() {
           !kata ||
           `${arsip.nomor_arsip} ${arsip.judul} ${arsip.kode} ${arsip.pembuat}`.toLowerCase().includes(kata);
         const cocokTahun = !tahun || arsip.tanggal_arsip.startsWith(tahun);
+        const cocokBulan = !bulan || arsip.tanggal_arsip.slice(5, 7) === bulan;
         const cocokStatus = !status || arsip.status_retensi === status;
         const cocokKode = !kode || arsip.kode === kode;
-        return cocokCari && cocokTahun && cocokStatus && cocokKode;
+        const cocokPengguna = !pengguna || arsip.pembuat === pengguna;
+
+        let cocokTanggal = true;
+        if (modeTanggal === "satu" && tanggal1) {
+          cocokTanggal = arsip.tanggal_arsip === tanggal1;
+        } else if (modeTanggal === "rentang") {
+          if (tanggal1) cocokTanggal = cocokTanggal && arsip.tanggal_arsip >= tanggal1;
+          if (tanggal2) cocokTanggal = cocokTanggal && arsip.tanggal_arsip <= tanggal2;
+        }
+
+        return cocokCari && cocokTahun && cocokBulan && cocokStatus && cocokKode && cocokPengguna && cocokTanggal;
       })
       .sort((a, b) => b.tanggal_arsip.localeCompare(a.tanggal_arsip));
-  }, [cari, data.arsip, kode, status, tahun]);
+  }, [bulan, cari, data.arsip, kode, modeTanggal, pengguna, status, tahun, tanggal1, tanggal2]);
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
   const halaman = Math.min(page, totalPages);
@@ -75,7 +117,10 @@ export default function ArsipPage() {
   const awal = filtered.length === 0 ? 0 : (halaman - 1) * PAGE_SIZE + 1;
   const akhir = Math.min(halaman * PAGE_SIZE, filtered.length);
 
+  const detail = detailId ? (data.arsip.find((arsip) => arsip.id === detailId) ?? null) : null;
+
   const bukaTambah = () => {
+    if (!canManage || data.kodeArsip.length === 0) return;
     const tanggal = today();
     setEditing(null);
     setForm({
@@ -91,6 +136,28 @@ export default function ArsipPage() {
     setFormOpen(true);
   };
 
+  // Membuka form/detail dari tautan cepat (bottom navbar atau pencarian Ctrl+K).
+  /* eslint-disable react-hooks/set-state-in-effect */
+  useEffect(() => {
+    if (!ready || paramsHandled.current) return;
+    paramsHandled.current = true;
+    const params = new URLSearchParams(window.location.search);
+    const detailParam = params.get("detail");
+    const cariParam = params.get("cari");
+    if (cariParam) setCari(cariParam);
+    if (detailParam && data.arsip.some((arsip) => arsip.id === detailParam)) {
+      setDetailId(detailParam);
+    }
+    if (params.get("baru") === "1") {
+      bukaTambah();
+    }
+    if (params.toString()) {
+      window.history.replaceState(null, "", window.location.pathname);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ready]);
+  /* eslint-enable react-hooks/set-state-in-effect */
+
   const bukaUbah = (arsip: Arsip) => {
     setEditing(arsip);
     setForm({
@@ -104,7 +171,7 @@ export default function ArsipPage() {
       file_type: arsip.file_type ?? "",
     });
     setFormError("");
-    setDetail(null);
+    setDetailId(null);
     setFormOpen(true);
   };
 
@@ -150,16 +217,43 @@ export default function ArsipPage() {
     toast(hasil.message ?? (hasil.ok ? "Arsip dihapus." : "Gagal menghapus arsip."), hasil.ok ? "success" : "error");
     if (hasil.ok) {
       setHapus(null);
-      setDetail(null);
+      setDetailId(null);
     }
   };
 
-  const hapusFilter = (jenis: "tahun" | "status" | "kode") => {
-    if (jenis === "tahun") setTahun("");
-    if (jenis === "status") setStatus("");
-    if (jenis === "kode") setKode("");
+  const resetFilter = () => {
+    setCari("");
+    setTahun("");
+    setBulan("");
+    setStatus("");
+    setKode("");
+    setPengguna("");
+    setModeTanggal("");
+    setTanggal1("");
+    setTanggal2("");
     setPage(1);
+    toast("Filter arsip dibersihkan.", "info");
   };
+
+  const aktifFilter = Boolean(cari || tahun || bulan || status || kode || pengguna || modeTanggal);
+
+  const riwayatDetail = useMemo(() => {
+    if (!detail) return [];
+    return data.logs
+      .filter((log) => log.target.includes(detail.nomor_arsip) || log.target.includes(detail.judul))
+      .sort((a, b) => b.waktu.localeCompare(a.waktu));
+  }, [data.logs, detail]);
+
+  const retensiDetail = useMemo(() => {
+    if (!detail) return null;
+    const kodeData = data.kodeArsip.find((item) => item.kode === detail.kode);
+    if (!kodeData) return null;
+    return hitungRetensi(
+      new Date(`${detail.tanggal_arsip}T00:00:00`),
+      kodeData.retensi_aktif_thn,
+      kodeData.retensi_inaktif_thn,
+    );
+  }, [data.kodeArsip, detail]);
 
   return (
     <>
@@ -169,15 +263,28 @@ export default function ArsipPage() {
             <h2 className="h2">Daftar Arsip</h2>
             <p className="sub">Cari, filter, tambah, ubah, dan unduh arsip digital.</p>
           </div>
-          <button
-            type="button"
-            className="btn"
-            onClick={bukaTambah}
-            disabled={!canManage || data.kodeArsip.length === 0}
-            title={!canManage ? "Pimpinan hanya dapat melihat" : data.kodeArsip.length === 0 ? "Tambahkan kode arsip dahulu" : ""}
-          >
-            + Tambah Arsip
-          </button>
+          <div className="actions-row">
+            {aktifFilter ? (
+              <button type="button" className="btn btn-ghost btn-sm" onClick={resetFilter}>
+                Reset filter
+              </button>
+            ) : null}
+            <button
+              type="button"
+              className="btn"
+              onClick={bukaTambah}
+              disabled={!canManage || data.kodeArsip.length === 0}
+              title={
+                !canManage
+                  ? "Pimpinan hanya dapat melihat"
+                  : data.kodeArsip.length === 0
+                    ? "Tambahkan kode arsip dahulu"
+                    : ""
+              }
+            >
+              <Icon name="plus" size={16} /> Tambah Arsip
+            </button>
+          </div>
         </div>
 
         <div className="toolbar">
@@ -197,6 +304,7 @@ export default function ArsipPage() {
               setTahun(event.target.value);
               setPage(1);
             }}
+            aria-label="Filter tahun"
           >
             <option value="">Semua tahun</option>
             {daftarTahun.map((item) => (
@@ -207,11 +315,82 @@ export default function ArsipPage() {
           </select>
           <select
             className="select"
+            value={bulan}
+            onChange={(event) => {
+              setBulan(event.target.value);
+              setPage(1);
+            }}
+            aria-label="Filter bulan"
+          >
+            <option value="">Semua bulan</option>
+            {BULAN.map(([value, label]) => (
+              <option key={value} value={value}>
+                {label}
+              </option>
+            ))}
+          </select>
+          <select
+            className="select"
+            value={modeTanggal}
+            onChange={(event) => {
+              const mode = event.target.value as ModeTanggal;
+              setModeTanggal(mode);
+              if (!mode) {
+                setTanggal1("");
+                setTanggal2("");
+              }
+              setPage(1);
+            }}
+            aria-label="Mode tanggal"
+          >
+            <option value="">Semua tanggal</option>
+            <option value="satu">Satu tanggal</option>
+            <option value="rentang">Rentang tanggal</option>
+          </select>
+          {modeTanggal === "satu" ? (
+            <input
+              type="date"
+              className="input"
+              value={tanggal1}
+              onChange={(event) => {
+                setTanggal1(event.target.value);
+                setPage(1);
+              }}
+              aria-label="Tanggal arsip"
+            />
+          ) : null}
+          {modeTanggal === "rentang" ? (
+            <>
+              <input
+                type="date"
+                className="input"
+                value={tanggal1}
+                onChange={(event) => {
+                  setTanggal1(event.target.value);
+                  setPage(1);
+                }}
+                aria-label="Tanggal mulai"
+              />
+              <input
+                type="date"
+                className="input"
+                value={tanggal2}
+                onChange={(event) => {
+                  setTanggal2(event.target.value);
+                  setPage(1);
+                }}
+                aria-label="Tanggal akhir"
+              />
+            </>
+          ) : null}
+          <select
+            className="select"
             value={status}
             onChange={(event) => {
               setStatus(event.target.value);
               setPage(1);
             }}
+            aria-label="Filter status retensi"
           >
             <option value="">Semua status</option>
             <option value="Aktif">Aktif</option>
@@ -225,6 +404,7 @@ export default function ArsipPage() {
               setKode(event.target.value);
               setPage(1);
             }}
+            aria-label="Filter kode arsip"
           >
             <option value="">Semua kode</option>
             {data.kodeArsip.map((item) => (
@@ -233,20 +413,57 @@ export default function ArsipPage() {
               </option>
             ))}
           </select>
-          <button
-            type="button"
-            className="btn btn-ghost"
-            onClick={() => toast(`Filter diterapkan: ${filtered.length} arsip ditemukan.`, "info")}
+          <select
+            className="select"
+            value={pengguna}
+            onChange={(event) => {
+              setPengguna(event.target.value);
+              setPage(1);
+            }}
+            aria-label="Filter pengguna penambah"
           >
-            Terapkan
-          </button>
+            <option value="">Semua pengguna</option>
+            {daftarPengguna.map((item) => (
+              <option key={item} value={item}>
+                {item}
+              </option>
+            ))}
+          </select>
         </div>
 
         <div className="chips">
           {tahun ? (
             <span className="chip">
               Tahun: <strong>{tahun}</strong>
-              <button type="button" onClick={() => hapusFilter("tahun")} aria-label="Hapus filter tahun">
+              <button type="button" onClick={() => setTahun("")} aria-label="Hapus filter tahun">
+                &times;
+              </button>
+            </span>
+          ) : null}
+          {bulan ? (
+            <span className="chip">
+              Bulan: <strong>{BULAN.find(([value]) => value === bulan)?.[1]}</strong>
+              <button type="button" onClick={() => setBulan("")} aria-label="Hapus filter bulan">
+                &times;
+              </button>
+            </span>
+          ) : null}
+          {modeTanggal ? (
+            <span className="chip">
+              {modeTanggal === "satu" ? "Tanggal" : "Rentang"}:{" "}
+              <strong>
+                {tanggal1 || "-"}
+                {modeTanggal === "rentang" ? ` s.d. ${tanggal2 || "-"}` : ""}
+              </strong>
+              <button
+                type="button"
+                onClick={() => {
+                  setModeTanggal("");
+                  setTanggal1("");
+                  setTanggal2("");
+                }}
+                aria-label="Hapus filter tanggal"
+              >
                 &times;
               </button>
             </span>
@@ -254,7 +471,7 @@ export default function ArsipPage() {
           {status ? (
             <span className="chip">
               Status: <strong>{status}</strong>
-              <button type="button" onClick={() => hapusFilter("status")} aria-label="Hapus filter status">
+              <button type="button" onClick={() => setStatus("")} aria-label="Hapus filter status">
                 &times;
               </button>
             </span>
@@ -262,7 +479,15 @@ export default function ArsipPage() {
           {kode ? (
             <span className="chip">
               Kode: <strong>{kode}</strong>
-              <button type="button" onClick={() => hapusFilter("kode")} aria-label="Hapus filter kode">
+              <button type="button" onClick={() => setKode("")} aria-label="Hapus filter kode">
+                &times;
+              </button>
+            </span>
+          ) : null}
+          {pengguna ? (
+            <span className="chip">
+              Pengguna: <strong>{pengguna}</strong>
+              <button type="button" onClick={() => setPengguna("")} aria-label="Hapus filter pengguna">
                 &times;
               </button>
             </span>
@@ -298,50 +523,112 @@ export default function ArsipPage() {
           <table>
             <thead>
               <tr>
-                <th>Nomor Arsip</th>
                 <th>Judul</th>
                 <th>Kode</th>
-                <th>Tanggal Arsip</th>
-                <th>Pembuat</th>
-                <th>Akhir Retensi</th>
-                <th>Status</th>
-                <th>Aksi</th>
+                <th>Ditambahkan Oleh</th>
+                <th>Disimpan Sampai</th>
+                <th style={{ width: 56 }}>Aksi</th>
               </tr>
             </thead>
             <tbody>
-              {paged.map((arsip) => (
-                <tr key={arsip.id}>
-                  <td className="mono">{arsip.nomor_arsip}</td>
-                  <td>
-                    <div className="cell-title">{arsip.judul}</div>
-                    <div className="cell-sub">
-                      {arsip.file_name ? `${arsip.file_name} - ${formatBytes(arsip.file_size)}` : "Belum ada berkas"}
-                    </div>
-                  </td>
-                  <td>
-                    <span className="badge badge-muted">{arsip.kode}</span>
-                  </td>
-                  <td>{formatTanggal(arsip.tanggal_arsip)}</td>
-                  <td>{arsip.pembuat}</td>
-                  <td>{formatTanggal(arsip.akhir_retensi)}</td>
-                  <td>
-                    <StatusBadge status={arsip.status_retensi} />
-                  </td>
-                  <td>
-                    <div className="actions-row">
-                      <button type="button" className="btn btn-ghost btn-sm" onClick={() => unduh(arsip)}>
-                        Unduh
-                      </button>
-                      <button type="button" className="btn btn-ghost btn-sm" onClick={() => setDetail(arsip)}>
-                        Detail
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
-              {paged.length === 0 ? (
+              {!ready
+                ? Array.from({ length: 5 }).map((_, index) => (
+                    <tr key={`skeleton-${index}`}>
+                      <td>
+                        <div className="skeleton skeleton-text" style={{ width: "78%" }} />
+                        <div className="skeleton skeleton-text" style={{ width: "38%", marginBottom: 0 }} />
+                      </td>
+                      <td>
+                        <div className="skeleton skeleton-text" style={{ width: 56, marginBottom: 0 }} />
+                      </td>
+                      <td>
+                        <div className="skeleton skeleton-text" style={{ width: 120, marginBottom: 0 }} />
+                      </td>
+                      <td>
+                        <div className="skeleton skeleton-text" style={{ width: 90, marginBottom: 0 }} />
+                      </td>
+                      <td>
+                        <div className="skeleton skeleton-circle" />
+                      </td>
+                    </tr>
+                  ))
+                : paged.map((arsip) => (
+                    <tr key={arsip.id} className="row-click" onClick={() => setDetailId(arsip.id)}>
+                      <td>
+                        <div className="cell-title">{arsip.judul}</div>
+                        <div className="cell-sub mono">{arsip.nomor_arsip}</div>
+                      </td>
+                      <td>
+                        <span className="badge badge-muted">{arsip.kode}</span>
+                      </td>
+                      <td>
+                        <div className="user-cell">
+                          <span className="avatar avatar-xs">{inisial(arsip.pembuat)}</span>
+                          <div>
+                            <div className="cell-title small">{arsip.pembuat}</div>
+                            <div className="cell-sub">{formatTanggal(arsip.created_at ?? arsip.tanggal_arsip)}</div>
+                          </div>
+                        </div>
+                      </td>
+                      <td>
+                        <StatusBadge status={arsip.status_retensi} />
+                        <div className="cell-sub">{formatTanggal(arsip.akhir_retensi)}</div>
+                      </td>
+                      <td onClick={(event) => event.stopPropagation()}>
+                        <details className="row-menu">
+                          <summary aria-label={`Aksi untuk ${arsip.nomor_arsip}`}>
+                            <Icon name="dots" size={18} />
+                          </summary>
+                          <div className="row-menu-panel">
+                            <button
+                              type="button"
+                              onClick={(event) => {
+                                event.currentTarget.closest("details")?.removeAttribute("open");
+                                setDetailId(arsip.id);
+                              }}
+                            >
+                              <Icon name="file" size={15} /> Lihat detail
+                            </button>
+                            <button
+                              type="button"
+                              onClick={(event) => {
+                                event.currentTarget.closest("details")?.removeAttribute("open");
+                                unduh(arsip);
+                              }}
+                            >
+                              <Icon name="download" size={15} /> Unduh
+                            </button>
+                            {canManage ? (
+                              <button
+                                type="button"
+                                onClick={(event) => {
+                                  event.currentTarget.closest("details")?.removeAttribute("open");
+                                  bukaUbah(arsip);
+                                }}
+                              >
+                                <Icon name="edit" size={15} /> Ubah
+                              </button>
+                            ) : null}
+                            {canManage ? (
+                              <button
+                                type="button"
+                                className="danger"
+                                onClick={(event) => {
+                                  event.currentTarget.closest("details")?.removeAttribute("open");
+                                  setHapus(arsip);
+                                }}
+                              >
+                                <Icon name="trash" size={15} /> Hapus
+                              </button>
+                            ) : null}
+                          </div>
+                        </details>
+                      </td>
+                    </tr>
+                  ))}
+              {ready && paged.length === 0 ? (
                 <tr>
-                  <td colSpan={8}>
+                  <td colSpan={5}>
                     <div className="empty">Tidak ada arsip yang cocok dengan filter.</div>
                   </td>
                 </tr>
@@ -377,6 +664,117 @@ export default function ArsipPage() {
           </div>
         </div>
       </div>
+
+      <Drawer
+        open={Boolean(detail)}
+        onClose={() => setDetailId(null)}
+        title="Detail Arsip"
+        subtitle={detail?.nomor_arsip}
+        footer={
+          detail ? (
+            <>
+              <button type="button" className="btn btn-ghost" onClick={() => setDetailId(null)}>
+                Tutup
+              </button>
+              <button type="button" className="btn btn-ghost" onClick={() => unduh(detail)}>
+                <Icon name="download" size={15} /> Unduh
+              </button>
+              {canManage ? (
+                <>
+                  <button type="button" className="btn btn-danger" onClick={() => setHapus(detail)}>
+                    Hapus
+                  </button>
+                  <button type="button" className="btn" onClick={() => bukaUbah(detail)}>
+                    Ubah
+                  </button>
+                </>
+              ) : null}
+            </>
+          ) : null
+        }
+      >
+        {detail ? (
+          <>
+            <div className="preview">
+              <span className="preview-icon">
+                <Icon name="file" size={26} />
+              </span>
+              <strong>{detail.file_name ?? "Belum ada berkas"}</strong>
+              <small>
+                {detail.file_name
+                  ? `${detail.file_type || "Berkas"} - ${formatBytes(detail.file_size)}`
+                  : "Berkas belum diunggah pada mode demo"}
+              </small>
+            </div>
+
+            <div className="meta-grid">
+              <div className="meta-item">
+                <span>Kode arsip</span>
+                <strong className="mono">{detail.kode}</strong>
+              </div>
+              <div className="meta-item">
+                <span>Tanggal arsip</span>
+                <strong>{formatTanggal(detail.tanggal_arsip)}</strong>
+              </div>
+              <div className="meta-item">
+                <span>Status retensi</span>
+                <strong>
+                  <StatusBadge status={detail.status_retensi} />
+                </strong>
+              </div>
+              <div className="meta-item">
+                <span>Akhir aktif</span>
+                <strong>{retensiDetail ? formatTanggal(retensiDetail.akhirAktif.toISOString()) : "-"}</strong>
+              </div>
+              <div className="meta-item">
+                <span>Akhir retensi</span>
+                <strong>{formatTanggal(detail.akhir_retensi)}</strong>
+              </div>
+              <div className="meta-item">
+                <span>Ditambahkan oleh</span>
+                <strong>{detail.pembuat}</strong>
+              </div>
+            </div>
+
+            <p className="sub" style={{ marginTop: 10 }}>
+              Ditambahkan oleh <strong>{detail.pembuat}</strong> pada{" "}
+              {formatWaktu(detail.created_at ?? detail.tanggal_arsip)}.
+            </p>
+
+            {detail.keterangan ? (
+              <div className="drawer-section">
+                <div className="drawer-section-title">Keterangan</div>
+                <p className="sub" style={{ marginTop: 0 }}>
+                  {detail.keterangan}
+                </p>
+              </div>
+            ) : null}
+
+            <div className="drawer-section">
+              <div className="drawer-section-title">Riwayat Perubahan</div>
+              {riwayatDetail.length ? (
+                <ul className="timeline">
+                  {riwayatDetail.map((log) => (
+                    <li key={log.id}>
+                      <span className={`tl-icon ${log.jenis === "hapus" ? "danger" : log.jenis === "ubah" ? "warn" : ""}`}>
+                        {log.jenis.slice(0, 2).toUpperCase()}
+                      </span>
+                      <div className="tl-body">
+                        <div className="tl-title">{log.aksi}</div>
+                        <div className="tl-meta">
+                          {log.user} - {formatWaktu(log.waktu)}
+                        </div>
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <div className="empty">Belum ada riwayat perubahan untuk arsip ini.</div>
+              )}
+            </div>
+          </>
+        ) : null}
+      </Drawer>
 
       <Modal
         open={formOpen}
@@ -477,7 +875,9 @@ export default function ArsipPage() {
                 }}
               />
               <span className="field-hint">
-                {form.file_name ? `${form.file_name} - ${formatBytes(form.file_size)}` : "Opsional pada mode demo, maksimal 10 MB."}
+                {form.file_name
+                  ? `${form.file_name} - ${formatBytes(form.file_size)}`
+                  : "Opsional pada mode demo, maksimal 10 MB."}
               </span>
             </div>
             <div className="field field-full">
@@ -491,64 +891,10 @@ export default function ArsipPage() {
               />
             </div>
           </div>
-          <div className="form-note">Berkas yang dipilih hanya dicatat metadatanya. Penyimpanan berkas asli menunggu integrasi storage.</div>
+          <div className="form-note">
+            Berkas yang dipilih hanya dicatat metadatanya. Penyimpanan berkas asli menunggu integrasi storage.
+          </div>
         </form>
-      </Modal>
-
-      <Modal
-        open={Boolean(detail)}
-        onClose={() => setDetail(null)}
-        title="Detail Arsip"
-        subtitle={detail?.nomor_arsip}
-        footer={
-          detail ? (
-            <>
-              <button type="button" className="btn btn-ghost" onClick={() => setDetail(null)}>
-                Tutup
-              </button>
-              {canManage ? (
-                <>
-                  <button type="button" className="btn btn-danger" onClick={() => setHapus(detail)}>
-                    Hapus
-                  </button>
-                  <button type="button" className="btn" onClick={() => bukaUbah(detail)}>
-                    Ubah
-                  </button>
-                </>
-              ) : null}
-            </>
-          ) : null
-        }
-      >
-        {detail ? (
-          <>
-            <dl className="kv">
-              <dt>Judul</dt>
-              <dd>{detail.judul}</dd>
-              <dt>Kode arsip</dt>
-              <dd className="mono">{detail.kode}</dd>
-              <dt>Tanggal arsip</dt>
-              <dd>{formatTanggal(detail.tanggal_arsip)}</dd>
-              <dt>Status retensi</dt>
-              <dd>
-                <StatusBadge status={detail.status_retensi} />
-              </dd>
-              <dt>Akhir retensi</dt>
-              <dd>{formatTanggal(detail.akhir_retensi)}</dd>
-              <dt>Pembuat</dt>
-              <dd>{detail.pembuat}</dd>
-              <dt>Berkas</dt>
-              <dd>{detail.file_name ?? "Belum ada berkas"}</dd>
-              <dt>Ukuran</dt>
-              <dd>{formatBytes(detail.file_size)}</dd>
-              <dt>Keterangan</dt>
-              <dd>{detail.keterangan ?? "-"}</dd>
-            </dl>
-            <button type="button" className="btn btn-ghost" style={{ marginTop: 16 }} onClick={() => unduh(detail)}>
-              Unduh Dokumen Demo
-            </button>
-          </>
-        ) : null}
       </Modal>
 
       <Modal

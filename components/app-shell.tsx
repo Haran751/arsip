@@ -2,122 +2,97 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { inisial } from "@/lib/demo-data";
+import { useEffect, useMemo, useRef, useState } from "react";
+import Icon from "./icon";
+import CommandPalette from "./command-palette";
 import { useDemo } from "@/lib/demo-store";
-
-type NavItem = {
-  href: string;
-  label: string;
-  desc: string;
-  icon: string;
-  section?: string;
-};
-
-const navItems: NavItem[] = [
-  { href: "/beranda", label: "Beranda", desc: "Ringkasan arsip dan aktivitas terbaru", icon: "home", section: "Utama" },
-  { href: "/arsip", label: "Arsip", desc: "Kelola dan telusuri arsip digital", icon: "archive", section: "Pengelolaan" },
-  { href: "/kode-arsip", label: "Kode Arsip", desc: "Master kode dan aturan retensi", icon: "folder" },
-  { href: "/pemusnahan", label: "Pemusnahan", desc: "Usulan dan persetujuan pemusnahan arsip", icon: "trash" },
-  { href: "/log", label: "Log Aktivitas", desc: "Jejak audit aktivitas pengguna", icon: "activity", section: "Sistem" },
-  { href: "/pengguna", label: "Pengguna", desc: "Kelola akun dan hak akses", icon: "users" },
-  { href: "/profil", label: "Profil", desc: "Informasi akun dan keamanan", icon: "user" },
-];
-
-function Icon({ name }: { name: string }) {
-  const common = {
-    width: 18,
-    height: 18,
-    viewBox: "0 0 24 24",
-    fill: "none",
-    stroke: "currentColor",
-    strokeWidth: 1.8,
-    strokeLinecap: "round" as const,
-    strokeLinejoin: "round" as const,
-  };
-
-  switch (name) {
-    case "home":
-      return (
-        <svg {...common}>
-          <path d="M3 10.5 12 3l9 7.5" />
-          <path d="M5 9.5V21h14V9.5" />
-          <path d="M9.5 21v-6h5v6" />
-        </svg>
-      );
-    case "archive":
-      return (
-        <svg {...common}>
-          <rect x="3" y="4" width="18" height="5" rx="1.5" />
-          <path d="M5 9v10a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V9" />
-          <path d="M10 13h4" />
-        </svg>
-      );
-    case "folder":
-      return (
-        <svg {...common}>
-          <path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2Z" />
-        </svg>
-      );
-    case "trash":
-      return (
-        <svg {...common}>
-          <path d="M4 7h16" />
-          <path d="M9 7V5h6v2" />
-          <path d="M6 7l1 13h10l1-13" />
-          <path d="M10 11v5M14 11v5" />
-        </svg>
-      );
-    case "activity":
-      return (
-        <svg {...common}>
-          <path d="M3 12h4l2.5-7 4 14 2.5-7H21" />
-        </svg>
-      );
-    case "users":
-      return (
-        <svg {...common}>
-          <circle cx="9" cy="8" r="3" />
-          <path d="M3.5 20a5.5 5.5 0 0 1 11 0" />
-          <path d="M16 5.5a3 3 0 0 1 0 5.5" />
-          <path d="M17.5 14.5A5.5 5.5 0 0 1 21 20" />
-        </svg>
-      );
-    case "user":
-      return (
-        <svg {...common}>
-          <circle cx="12" cy="8" r="3.5" />
-          <path d="M5 20a7 7 0 0 1 14 0" />
-        </svg>
-      );
-    case "logout":
-      return (
-        <svg {...common}>
-          <path d="M14 4h4a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-4" />
-          <path d="M10 8l-4 4 4 4" />
-          <path d="M6 12h9" />
-        </svg>
-      );
-    default:
-      return null;
-  }
-}
+import { navItems, mobileNavItems } from "@/lib/nav";
+import { formatWaktu, inisial } from "@/lib/demo-data";
 
 export default function AppShell({ children }: { children: React.ReactNode }) {
-  const { currentUser: user } = useDemo();
+  const { currentUser: user, data, stats, dueArsip } = useDemo();
   const pathname = usePathname();
+  const [paletteOpen, setPaletteOpen] = useState(false);
+  const [notifOpen, setNotifOpen] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
+
   const current =
     navItems.find((item) => pathname === item.href || pathname.startsWith(item.href + "/")) ?? navItems[0];
 
+  const notifications = useMemo(() => {
+    const list: { id: string; title: string; desc: string; href: string; tone: string }[] = [];
+    if (dueArsip.length) {
+      list.push({
+        id: "due",
+        title: `${dueArsip.length} arsip jatuh tempo`,
+        desc: "Arsip inaktif siap ditinjau untuk pemusnahan.",
+        href: "/pemusnahan",
+        tone: "warn",
+      });
+    }
+    if (stats.usulanDiajukan) {
+      list.push({
+        id: "usulan",
+        title: `${stats.usulanDiajukan} usulan menunggu`,
+        desc: "Usulan pemusnahan menunggu keputusan Admin.",
+        href: "/pemusnahan",
+        tone: "info",
+      });
+    }
+    data.logs
+      .slice()
+      .sort((a, b) => b.waktu.localeCompare(a.waktu))
+      .slice(0, 2)
+      .forEach((log) => {
+        list.push({
+          id: log.id,
+          title: log.aksi,
+          desc: `${log.user} - ${formatWaktu(log.waktu)}`,
+          href: "/log",
+          tone: "muted",
+        });
+      });
+    return list;
+  }, [data.logs, dueArsip.length, stats.usulanDiajukan]);
+
+  useEffect(() => {
+    const handler = (event: KeyboardEvent) => {
+      if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "k") {
+        event.preventDefault();
+        setPaletteOpen((open) => !open);
+      }
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, []);
+
+  /* eslint-disable react-hooks/set-state-in-effect */
+  useEffect(() => {
+    setNotifOpen(false);
+    setMenuOpen(false);
+  }, [pathname]);
+  /* eslint-enable react-hooks/set-state-in-effect */
+
+  useEffect(() => {
+    if (!menuOpen) return;
+    const handler = (event: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(event.target as Node)) setMenuOpen(false);
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [menuOpen]);
+
+  const badgeCount = dueArsip.length + stats.usulanDiajukan;
+
   return (
     <div className="app">
-      <aside className="sidebar">
-        <Link href="/beranda" className="brand">
+      <aside className="sidebar" aria-label="Navigasi utama">
+        <Link href="/beranda" className="brand" title="E-Arsip">
           <span className="brand-mark">EA</span>
           <span className="brand-text">
             <span className="brand-name">E-Arsip</span>
-            <span className="brand-sub" style={{ display: "block" }}>
-              Sistem Arsip Digital
-            </span>
+            <span className="brand-sub">Sistem Arsip Digital</span>
           </span>
         </Link>
 
@@ -126,11 +101,14 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
             const showSection = item.section && item.section !== navItems[index - 1]?.section;
             const active = item.href === current.href;
             return (
-              <div key={item.href}>
+              <div key={item.href} className="nav-group">
                 {showSection ? <div className="nav-label">{item.section}</div> : null}
-                <Link href={item.href} className={`nav-link${active ? " active" : ""}`}>
-                  <Icon name={item.icon} />
-                  {item.label}
+                <Link href={item.href} className={`nav-link${active ? " active" : ""}`} title={item.label}>
+                  <span className="nav-icon">
+                    <Icon name={item.icon} size={19} />
+                  </span>
+                  <span className="nav-text">{item.label}</span>
+                  {active ? <span className="nav-dot" /> : null}
                 </Link>
               </div>
             );
@@ -138,35 +116,149 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
         </nav>
 
         <div className="sidebar-foot">
-          <span className="avatar" style={{ width: 32, height: 32, flexBasis: 32, fontSize: 11 }}>
+          <span className="avatar" aria-hidden>
             {inisial(user.nama)}
           </span>
           <div className="sidebar-user">
             <div className="sidebar-user-name">{user.nama}</div>
-            <div className="sidebar-user-role">{user.role} - mode demo</div>
+            <div className="sidebar-user-role">{user.role}</div>
           </div>
           <a href="/logout" className="icon-btn" title="Keluar" aria-label="Keluar">
-            <Icon name="logout" />
+            <Icon name="logout" size={17} />
           </a>
         </div>
       </aside>
 
       <div className="main">
         <header className="topbar">
-          <div>
-            <h1 className="page-title">{current.label}</h1>
-            <p className="page-sub">{current.desc}</p>
-          </div>
-          <div className="topbar-user">
-            <div style={{ textAlign: "right" }}>
-              <div className="user-name">{user.nama}</div>
-              <div className="user-role">{user.role}</div>
+          <div className="topbar-left">
+            <div className="crumb">
+              E-Arsip <span>/</span> {current.section ?? "Menu"} <span>/</span> <strong>{current.label}</strong>
             </div>
-            <span className="avatar">{inisial(user.nama)}</span>
+            <div className="greeting">
+              <h1 className="page-title">Halo, {user.nama.split(" ")[0]}</h1>
+              <p className="page-sub">{current.desc}</p>
+            </div>
+          </div>
+
+          <div className="topbar-actions">
+            <button type="button" className="search-pill" onClick={() => setPaletteOpen(true)} aria-label="Cari cepat">
+              <Icon name="search" size={17} />
+              <span className="search-pill-text">Cari arsip atau halaman</span>
+              <kbd>Ctrl K</kbd>
+            </button>
+
+            <div className="popover-wrap">
+              <button
+                type="button"
+                className="icon-btn topbar-btn"
+                onClick={() => setNotifOpen((open) => !open)}
+                aria-label="Notifikasi"
+                aria-expanded={notifOpen}
+              >
+                <Icon name="bell" size={19} />
+                {badgeCount ? <span className="notif-dot" /> : null}
+              </button>
+              {notifOpen ? (
+                <div className="popover notif-panel">
+                  <div className="popover-head">
+                    <strong>Notifikasi</strong>
+                    <span className="badge badge-muted">{notifications.length} baru</span>
+                  </div>
+                  <div className="notif-list">
+                    {notifications.map((item) => (
+                      <Link key={item.id} href={item.href} className="notif-item" onClick={() => setNotifOpen(false)}>
+                        <span className={`notif-mark ${item.tone}`} />
+                        <span>
+                          <strong>{item.title}</strong>
+                          <small>{item.desc}</small>
+                        </span>
+                      </Link>
+                    ))}
+                    {notifications.length === 0 ? <div className="empty">Tidak ada notifikasi baru.</div> : null}
+                  </div>
+                  <Link href="/log" className="popover-foot" onClick={() => setNotifOpen(false)}>
+                    Lihat semua aktivitas <Icon name="chevron" size={14} />
+                  </Link>
+                </div>
+              ) : null}
+            </div>
+
+            <div className="popover-wrap" ref={menuRef}>
+              <button
+                type="button"
+                className="profile-trigger"
+                onClick={() => setMenuOpen((open) => !open)}
+                aria-label="Menu akun"
+                aria-expanded={menuOpen}
+              >
+                <span className="avatar">{inisial(user.nama)}</span>
+                <span className="profile-meta">
+                  <span className="user-name">{user.nama}</span>
+                  <span className="user-role">{user.role}</span>
+                </span>
+                <Icon name="chevron" size={14} className="profile-caret" />
+              </button>
+              {menuOpen ? (
+                <div className="popover profile-menu">
+                  <div className="profile-menu-head">
+                    <span className="avatar avatar-md">{inisial(user.nama)}</span>
+                    <div>
+                      <strong>{user.nama}</strong>
+                      <small>{user.email}</small>
+                    </div>
+                  </div>
+                  <Link href="/profil" onClick={() => setMenuOpen(false)}>
+                    <Icon name="user" size={16} /> Profil
+                  </Link>
+                  <Link href="/pengaturan" onClick={() => setMenuOpen(false)}>
+                    <Icon name="settings" size={16} /> Pengaturan
+                  </Link>
+                  <a href="/logout">
+                    <Icon name="logout" size={16} /> Keluar
+                  </a>
+                </div>
+              ) : null}
+            </div>
           </div>
         </header>
+
         <div className="content">{children}</div>
       </div>
+
+      <nav className="bottombar" aria-label="Navigasi bawah">
+        {mobileNavItems.slice(0, 2).map((item) => {
+          const active = item.href === current.href;
+          return (
+            <Link key={item.href} href={item.href} className={`bottom-item${active ? " active" : ""}`}>
+              <Icon name={item.icon} size={20} />
+              <span>{item.label}</span>
+            </Link>
+          );
+        })}
+        <Link href="/arsip?baru=1" className="bottom-add" aria-label="Tambah arsip">
+          <Icon name="plus" size={22} />
+        </Link>
+        {mobileNavItems.slice(2, 3).map((item) => {
+          const active = item.href === current.href;
+          return (
+            <Link key={item.href} href={item.href} className={`bottom-item${active ? " active" : ""}`}>
+              <Icon name={item.icon} size={20} />
+              <span>{item.label}</span>
+            </Link>
+          );
+        })}
+        <Link href="/profil" className={`bottom-item${pathname.startsWith("/profil") ? " active" : ""}`}>
+          <Icon name="user" size={20} />
+          <span>Profil</span>
+        </Link>
+      </nav>
+
+      <CommandPalette
+        key={paletteOpen ? "open" : "closed"}
+        open={paletteOpen}
+        onClose={() => setPaletteOpen(false)}
+      />
     </div>
   );
 }

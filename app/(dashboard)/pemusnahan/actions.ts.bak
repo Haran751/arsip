@@ -1,0 +1,40 @@
+'use server'
+
+import { auth } from '@/auth'
+import { prisma } from '@/lib/prisma'
+import { withAuditContext } from '@/lib/audit-context'
+import { revalidatePath } from 'next/cache'
+
+export async function ajukanPemusnahan(ids: string[]) {
+  const session = await auth()
+  if (!session?.user || (session.user as any).must_change_password) throw new Error('Tidak diizinkan')
+  const role = (session.user as any).role
+  if (role !== 'Admin' && role !== 'Operator') throw new Error('Tidak diizinkan')
+  const userId = (session.user as any).id
+
+  const nomor = `USUL-${Date.now()}`
+  await withAuditContext(userId, async (tx) => {
+    const usulan = await tx.usulanPemusnahan.create({
+      data: { nomor_usulan: nomor, diajukan_oleh: userId, status: 'Diajukan' },
+    })
+    await tx.usulanPemusnahanItem.createMany({
+      data: ids.map((arsip_id) => ({ usulan_id: usulan.id, arsip_id })),
+    })
+  })
+  revalidatePath('/pemusnahan')
+}
+
+export async function setujuiPemusnahan(id: string) {
+  const session = await auth()
+  if (!session?.user || (session.user as any).must_change_password) throw new Error('Tidak diizinkan')
+  if ((session.user as any).role !== 'Admin') throw new Error('Hanya Admin')
+  const userId = (session.user as any).id
+
+  await withAuditContext(userId, async (tx) => {
+    await tx.usulanPemusnahan.update({
+      where: { id },
+      data: { status: 'Disetujui', disetujui_oleh: userId, tanggal_disetujui: new Date() },
+    })
+  })
+  revalidatePath('/pemusnahan')
+}

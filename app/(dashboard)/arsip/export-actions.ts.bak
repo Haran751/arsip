@@ -1,0 +1,36 @@
+'use server'
+
+import { auth } from '@/auth'
+import { prisma } from '@/lib/prisma'
+import * as XLSX from 'exceljs'
+import { NextResponse } from 'next/server'
+
+export async function exportArsipExcel(params: any) {
+  const session = await auth()
+  if (!session?.user || (session.user as any).must_change_password) throw new Error('Tidak diizinkan')
+
+  const where: any = { deleted_at: null }
+  if (params.tahun) where.tanggal_arsip = { gte: new Date(`${params.tahun}-01-01`), lte: new Date(`${params.tahun}-12-31`) }
+  if (params.kode_arsip_id) where.kode_arsip_id = params.kode_arsip_id
+  if (params.status_retensi) where.status_retensi = params.status_retensi
+
+  const data = await prisma.arsip.findMany({
+    where,
+    include: { kodeArsip: true, pembuat: true },
+    orderBy: { created_at: 'desc' },
+    take: 10000,
+  })
+
+  const wb = new XLSX.Workbook()
+  const ws = wb.addWorksheet('Arsip')
+  ws.addRow(['E-ARSIP - EXPORT ARSIP'])
+  ws.addRow([`Tanggal Ekspor: ${new Date().toISOString()}`])
+  ws.addRow([])
+  ws.addRow(['No Arsip', 'Judul', 'Kode', 'Tanggal Arsip', 'Ditambahkan Oleh', 'Status Retensi', 'Akhir Retensi'])
+  data.forEach((a: any) => {
+    ws.addRow([a.nomor_arsip, a.judul, a.kodeArsip?.kode, a.tanggal_arsip, a.pembuat?.nama, a.status_retensi, a.akhir_retensi])
+  })
+
+  const buf = await wb.xlsx.writeBuffer()
+  return Buffer.from(buf)
+}

@@ -1,0 +1,31 @@
+import { NextResponse } from "next/server"
+import { auth } from "@/auth"
+
+export async function middleware(req) {
+  const session = await auth()
+  const { pathname } = req.nextUrl
+
+  if (pathname.startsWith("/login")) {
+    if (session?.user && !(session.user as any).must_change_password) {
+      return NextResponse.redirect(new URL("/beranda", req.url))
+    }
+    return NextResponse.next()
+  }
+
+  if (pathname === "/ganti-password") {
+    if (!session?.user) return NextResponse.redirect(new URL("/login", req.url))
+    return NextResponse.next()
+  }
+
+  if (pathname.startsWith("/beranda") || pathname.startsWith("/arsip") || pathname.startsWith("/kode-arsip") || pathname.startsWith("/pemusnahan") || pathname.startsWith("/pengguna") || pathname.startsWith("/log") || pathname.startsWith("/profil")) {
+    if (!session?.user) return NextResponse.redirect(new URL("/login", req.url))
+    if ((session.user as any).must_change_password) return NextResponse.redirect(new URL("/ganti-password", req.url))
+    if (!(session.user as any).aktif) return NextResponse.redirect(new URL("/login", req.url))
+  }
+
+  return NextResponse.next()
+}
+
+export const config = {
+  matcher: ["/((?!api|_next/static|_next/image|favicon.ico).*)"],
+}

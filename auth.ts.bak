@@ -1,0 +1,68 @@
+import NextAuth from "next-auth"
+import Credentials from "next-auth/providers/credentials"
+import { prisma } from "@/lib/prisma"
+import bcrypt from "bcryptjs"
+import { z } from "zod"
+
+const loginSchema = z.object({
+  username: z.string().min(1),
+  password: z.string().min(1),
+})
+
+export const { handlers, auth, signIn, signOut } = NextAuth({
+  session: { strategy: "jwt" },
+  pages: {
+    signIn: "/login",
+  },
+  providers: [
+    Credentials({
+      name: "Credentials",
+      credentials: {
+        username: { label: "Username", type: "text" },
+        password: { label: "Password", type: "password" },
+      },
+      async authorize(credentials) {
+        const parsed = loginSchema.safeParse(credentials)
+        if (!parsed.success) return null
+        const { username, password } = parsed.data
+        const user = await prisma.user.findUnique({ where: { username } })
+        if (!user || !user.aktif) return null
+        const ok = await bcrypt.compare(password, user.password_hash)
+        if (!ok) return null
+        await prisma.user.update({
+          where: { id: user.id },
+          data: { last_login: new Date() },
+        })
+        return {
+          id: user.id,
+          name: user.nama,
+          email: user.email,
+          role: user.role,
+          aktif: user.aktif,
+          must_change_password: user.must_change_password,
+        }
+      },
+    }),
+  ],
+  callbacks: {
+    async jwt({ token, user }) {
+      if (user) {
+        (token as any).id = user.id
+        (token as any).role = (user as any).role
+        (token as any).aktif = (user as any).aktif
+        (token as any).must_change_password = (user as any).must_change_password
+        token.name = user.name
+      }
+      return token
+    },
+    async session({ session, token }) {
+      if (session.user) {
+        (session.user as any).id = token.id
+        (session.user as any).role = token.role
+        (session.user as any).aktif = token.aktif
+        (session.user as any).must_change_password = token.must_change_password
+      }
+      return session
+    },
+  },
+})

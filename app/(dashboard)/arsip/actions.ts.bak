@@ -1,0 +1,65 @@
+'use server'
+
+import { auth } from '@/auth'
+import { prisma } from '@/lib/prisma'
+import { arsipSchema } from '@/lib/validations'
+import { withAuditContext } from '@/lib/audit-context'
+import { revalidatePath } from 'next/cache'
+
+export async function createArsip(formData: FormData) {
+  const session = await auth()
+  if (!session?.user || (session.user as any).must_change_password) throw new Error('Tidak diizinkan')
+  const role = (session.user as any).role
+  if (role !== 'Admin' && role !== 'Operator') throw new Error('Tidak diizinkan')
+
+  const raw = Object.fromEntries(formData)
+  const parsed = arsipSchema.parse(raw)
+  const userId = (session.user as any).id
+
+  await withAuditContext(userId, async (tx) => {
+    await tx.arsip.create({
+      data: {
+        ...(parsed as any),
+        tanggal_arsip: new Date(parsed.tanggal_arsip),
+        created_by: userId,
+      },
+    })
+  })
+  revalidatePath('/arsip')
+}
+
+export async function updateArsip(id: string, formData: FormData) {
+  const session = await auth()
+  if (!session?.user || (session.user as any).must_change_password) throw new Error('Tidak diizinkan')
+  const role = (session.user as any).role
+  if (role !== 'Admin' && role !== 'Operator') throw new Error('Tidak diizinkan')
+
+  const raw = Object.fromEntries(formData)
+  const parsed = arsipSchema.parse(raw)
+  const userId = (session.user as any).id
+
+  await withAuditContext(userId, async (tx) => {
+    await tx.arsip.update({
+      where: { id },
+      data: {
+        ...(parsed as any),
+        tanggal_arsip: new Date(parsed.tanggal_arsip),
+        updated_by: userId,
+      },
+    })
+  })
+  revalidatePath('/arsip')
+}
+
+export async function softDeleteArsip(id: string) {
+  const session = await auth()
+  if (!session?.user || (session.user as any).must_change_password) throw new Error('Tidak diizinkan')
+  const role = (session.user as any).role
+  if (role !== 'Admin' && role !== 'Operator') throw new Error('Tidak diizinkan')
+
+  const userId = (session.user as any).id
+  await withAuditContext(userId, async (tx) => {
+    await tx.arsip.update({ where: { id }, data: { deleted_at: new Date(), updated_by: userId } })
+  })
+  revalidatePath('/arsip')
+}

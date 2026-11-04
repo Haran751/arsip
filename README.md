@@ -1,36 +1,48 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# E-Arsip
 
-## Getting Started
+Sistem pengelolaan arsip digital (Next.js App Router + TypeScript).
 
-First, run the development server:
+## Akun default
+
+Akun dibuat di Supabase Auth dan langsung dapat dipakai login.
+
+| Username | Password     | Peran    |
+| -------- | ------------ | -------- |
+| admin    | admin123     | Admin    |
+| operator | operator123  | Operator |
+| pimpinan | pimpinan123  | Pimpinan |
+
+Semua akun memakai email internal `@earsip.local`:
+
+- `admin@earsip.local`
+- `operator@earsip.local`
+- `pimpinan@earsip.local`
+
+Login boleh memakai username (mis. `admin`) atau email lengkap.
+
+## Menjalankan
 
 ```bash
+npm install
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Buka `http://localhost:3000/login`.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+`.env` wajib berisi `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, dan `AUTH_SECRET`.
+Contoh lengkap ada di `.env.example`.
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## Membuat ulang akun
 
-## Learn More
+```bash
+npm run akun:supabase
+```
 
-To learn more about Next.js, take a look at the following resources:
+Script akan membuat atau memperbarui tiga akun default di Supabase Auth.
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## Catatan
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+- Autentikasi, profil, ganti password, dan manajemen pengguna memakai Supabase Auth.
+- Password pengguna baru / hasil reset: `EArsip#2026` dan wajib diganti saat login pertama.
+- Data arsip, kode arsip, usulan, dan log saat ini masih tersimpan di `localStorage` browser.
+- Schema Prisma disiapkan di `prisma/schema.prisma` untuk migrasi data ke PostgreSQL pada tahap berikutnya.

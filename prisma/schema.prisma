@@ -1,0 +1,180 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+model User {
+  id                   String    @id @default(cuid())
+  nama                 String
+  username             String    @unique
+  email                String    @unique
+  password_hash        String
+  role                 String    @default("Operator")
+  aktif                Boolean   @default(true)
+  last_login           DateTime?
+  must_change_password Boolean   @default(false)
+  created_at           DateTime  @default(now())
+  updated_at           DateTime  @updatedAt
+
+  arsip_dibuat   Arsip[]          @relation("ArsipDibuat")
+  arsip_diubah   Arsip[]          @relation("ArsipDiubah")
+  riwayat        ArsipRiwayat[]
+  usulan         UsulanPemusnahan[] @relation("UsulanDiajukan")
+  usulan_disetujui UsulanPemusnahan[] @relation("UsulanDisetujui")
+  log            LogAktivitas[]
+  notifikasi     Notifikasi[]
+
+  @@map("users")
+}
+
+model KodeArsip {
+  id                  String   @id @default(cuid())
+  kode                String   @unique
+  nama                String
+  parent_id           String?
+  retensi_aktif_thn   Int      @default(0)
+  retensi_inaktif_thn Int      @default(0)
+  nasib_akhir         String   @default("Musnah")
+  keterangan          String?
+  created_at          DateTime @default(now())
+  updated_at          DateTime @updatedAt
+
+  parent  KodeArsip?  @relation("KodeHierarki", fields: [parent_id], references: [id], onDelete: SetNull)
+  anak    KodeArsip[] @relation("KodeHierarki")
+  arsip   Arsip[]
+
+  @@index([kode])
+  @@index([parent_id])
+  @@map("kode_arsip")
+}
+
+model Arsip {
+  id                  String    @id @default(cuid())
+  nomor_arsip         String    @unique
+  judul               String
+  kode_arsip_id       String
+  tanggal_arsip       DateTime
+  keterangan          String?
+  file_path           String?
+  file_name           String?
+  file_size           Int?
+  mime_type           String?
+  created_by          String
+  updated_by          String?
+  akhir_aktif         DateTime?
+  akhir_retensi       DateTime?
+  status_retensi      String    @default("Aktif")
+  retensi_override_thn Int?
+  alasan_override     String?
+  deleted_at          DateTime?
+  created_at          DateTime  @default(now())
+  updated_at          DateTime  @updatedAt
+
+  kode_arsip KodeArsip @relation(fields: [kode_arsip_id], references: [id])
+  pembuat    User      @relation("ArsipDibuat", fields: [created_by], references: [id])
+  pengubah   User?     @relation("ArsipDiubah", fields: [updated_by], references: [id])
+  riwayat    ArsipRiwayat[]
+  item_usulan UsulanPemusnahanItem[]
+
+  @@index([kode_arsip_id])
+  @@index([tanggal_arsip])
+  @@index([akhir_retensi])
+  @@index([status_retensi])
+  @@index([created_by])
+  @@map("arsip")
+}
+
+model ArsipRiwayat {
+  id         String   @id @default(cuid())
+  arsip_id   String
+  user_id    String?
+  aksi       String
+  keterangan String?
+  data_json  Json?
+  created_at DateTime @default(now())
+
+  arsip Arsip @relation(fields: [arsip_id], references: [id], onDelete: Cascade)
+  user  User? @relation(fields: [user_id], references: [id], onDelete: SetNull)
+
+  @@index([arsip_id])
+  @@map("arsip_riwayat")
+}
+
+model UsulanPemusnahan {
+  id               String    @id @default(cuid())
+  nomor            String    @unique
+  diajukan_oleh    String
+  tanggal          DateTime  @default(now())
+  status           String    @default("Diajukan")
+  disetujui_oleh   String?
+  catatan          String?
+  diputuskan_pada  DateTime?
+  created_at       DateTime  @default(now())
+  updated_at       DateTime  @updatedAt
+
+  pengaju   User                     @relation("UsulanDiajukan", fields: [diajukan_oleh], references: [id])
+  penyetuju User?                    @relation("UsulanDisetujui", fields: [disetujui_oleh], references: [id])
+  item      UsulanPemusnahanItem[]
+
+  @@map("usulan_pemusnahan")
+}
+
+model UsulanPemusnahanItem {
+  id        String @id @default(cuid())
+  usulan_id String
+  arsip_id  String
+
+  usulan UsulanPemusnahan @relation(fields: [usulan_id], references: [id], onDelete: Cascade)
+  arsip  Arsip           @relation(fields: [arsip_id], references: [id])
+
+  @@unique([usulan_id, arsip_id])
+  @@index([arsip_id])
+  @@map("usulan_pemusnahan_item")
+}
+
+model LogAktivitas {
+  id         String   @id @default(cuid())
+  user_id    String?
+  aksi       String
+  objek_type String?
+  objek_id   String?
+  ip_address String?
+  user_agent String?
+  keterangan String?
+  data_json  Json?
+  sumber     String   @default("Aplikasi")
+  created_at DateTime @default(now())
+
+  user User? @relation(fields: [user_id], references: [id], onDelete: SetNull)
+
+  @@index([created_at])
+  @@index([user_id])
+  @@map("log_aktivitas")
+}
+
+model Notifikasi {
+  id         String   @id @default(cuid())
+  user_id    String?
+  judul      String
+  pesan      String
+  dibaca     Boolean  @default(false)
+  created_at DateTime @default(now())
+
+  user User? @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
+  @@index([user_id, dibaca])
+  @@map("notifikasi")
+}
+
+model Pengaturan {
+  id    String @id @default(cuid())
+  kunci String @unique
+  nilai Json?
+
+  @@map("pengaturan")
+}

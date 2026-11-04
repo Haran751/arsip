@@ -12,7 +12,7 @@ export default function GantiPasswordPage() {
   const [error, setError] = useState("");
   const [sukses, setSukses] = useState(false);
 
-  const simpan = (event: React.FormEvent<HTMLFormElement>) => {
+  const simpan = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setError("");
     setSukses(false);
@@ -30,7 +30,7 @@ export default function GantiPasswordPage() {
       return;
     }
 
-    const hasil = changePassword(lama, baru);
+    const hasil = await changePassword(lama, baru);
     if (!hasil.ok) {
       setError(hasil.message ?? "Gagal mengganti password.");
       return;
@@ -57,15 +57,14 @@ export default function GantiPasswordPage() {
 
         <h1 className="login-title">Ganti password</h1>
         <p className="login-sub">
-          Akun <strong>{currentUser.nama}</strong> ({currentUser.username}). Minimal 6 karakter. Mode demo tidak menyimpan
-          password secara permanen.
+          Akun <strong>{currentUser.nama}</strong> ({currentUser.username}). Minimal 6 karakter.
         </p>
 
         {error ? <div className="error-box">{error}</div> : null}
         {sukses ? (
           <div className="note" style={{ marginBottom: 14 }}>
             <span className="note-mark" />
-            <span>Password berhasil diganti pada sesi demo ini.</span>
+            <span>Password berhasil diganti dan langsung berlaku untuk login berikutnya.</span>
           </div>
         ) : null}
 

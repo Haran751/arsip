@@ -27,9 +27,9 @@ export default function ProfilPage() {
     setEditOpen(true);
   };
 
-  const simpan = (event: React.FormEvent<HTMLFormElement>) => {
+  const simpan = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    const hasil = updateProfile({ nama: form.nama, email: form.email });
+    const hasil = await updateProfile({ nama: form.nama, email: form.email });
     if (!hasil.ok) {
       setFormError(hasil.message ?? "Gagal memperbarui profil.");
       return;
@@ -52,7 +52,7 @@ export default function ProfilPage() {
               <span className={`badge ${currentUser.aktif ? "badge-aktif" : "badge-danger"}`}>
                 {currentUser.aktif ? "Akun aktif" : "Akun nonaktif"}
               </span>
-              <span className="badge badge-info">Mode demo</span>
+              <span className="badge badge-info">{currentUser.role}</span>
             </div>
           </div>
           <div className="actions-row">
@@ -94,14 +94,14 @@ export default function ProfilPage() {
           <div className="section-head">
             <div>
               <h2 className="h2">Keamanan</h2>
-              <p className="sub">Pengaturan akses pada mode demo.</p>
+              <p className="sub">Pengaturan akses akun Anda.</p>
             </div>
           </div>
           <div className="stack" style={{ gap: 12 }}>
             <div className="spread">
               <div>
                 <div className="cell-title">Password</div>
-                <div className="cell-sub">Ganti password akun demo</div>
+                <div className="cell-sub">Ganti password akun</div>
               </div>
               <Link href="/ganti-password" className="btn btn-ghost btn-sm">
                 Ubah
@@ -110,7 +110,7 @@ export default function ProfilPage() {
             <div className="spread">
               <div>
                 <div className="cell-title">Wajib ganti password</div>
-                <div className="cell-sub">Tidak aktif pada akun ini</div>
+                <div className="cell-sub">Diminta saat login pertama</div>
               </div>
               <span className="badge badge-muted">Tidak</span>
             </div>
@@ -124,7 +124,7 @@ export default function ProfilPage() {
           </div>
           <div className="note" style={{ marginTop: 16 }}>
             <span className="note-mark" />
-            <span>Perubahan akun disimpan di browser selama mode demo dan belum tersinkron ke database.</span>
+            <span>Perubahan profil dan password tersimpan pada akun Supabase Anda.</span>
           </div>
         </div>
       </div>

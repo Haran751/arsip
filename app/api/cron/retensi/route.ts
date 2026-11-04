@@ -9,11 +9,11 @@ export async function GET(req: NextRequest) {
 
   return NextResponse.json({
     ok: true,
-    mode: "demo",
+    mode: "contoh",
     diperiksa: arsipList.length,
     diperbarui: 0,
     jatuhTempo: statistik.jatuhTempo,
-    pesan: "Mode demo: status retensi dihitung dari data contoh, tidak ada perubahan database.",
+    pesan: "Status retensi dihitung dari data contoh, tidak ada perubahan database.",
     dijalankan_pada: new Date().toISOString(),
   });
 }

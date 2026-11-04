@@ -71,11 +71,11 @@ export default function PengaturanPage() {
 
         <div className="pref-row">
           <div>
-            <strong>Data demo</strong>
-            <p>Kembalikan seluruh arsip, kode, pengguna, usulan, dan log ke kondisi awal. Perubahan tersimpan di browser ini.</p>
+            <strong>Data contoh</strong>
+            <p>Kembalikan arsip, kode, usulan, dan log ke kondisi awal. Akun pengguna tidak terpengaruh.</p>
           </div>
           <button type="button" className="btn btn-ghost btn-sm" onClick={resetDemo}>
-            Reset data demo
+            Reset data contoh
           </button>
         </div>
       </div>
@@ -83,33 +83,33 @@ export default function PengaturanPage() {
       <div className="card">
         <div className="section-head">
           <div>
-            <h2 className="h2">Tentang Mode Demo</h2>
-            <p className="sub">Frontend berjalan penuh tanpa database.</p>
+            <h2 className="h2">Tentang Aplikasi</h2>
+            <p className="sub">Ringkasan penyimpanan dan autentikasi.</p>
           </div>
         </div>
         <div className="meta-grid" style={{ marginTop: 0 }}>
           <div className="meta-item">
-            <span>Penyimpanan</span>
+            <span>Penyimpanan data</span>
             <strong>localStorage browser</strong>
           </div>
           <div className="meta-item">
             <span>Autentikasi</span>
-            <strong>Cookie sesi demo</strong>
+            <strong>Supabase Auth</strong>
           </div>
           <div className="meta-item">
             <span>Berkas</span>
             <strong>Metadata saja</strong>
           </div>
           <div className="meta-item">
-            <span>Database</span>
-            <strong>Belum terhubung</strong>
+            <span>Akun pengguna</span>
+            <strong>Tersimpan di Supabase</strong>
           </div>
         </div>
         <div className="note" style={{ marginTop: 16 }}>
           <span className="note-mark" />
           <span>
-            Integrasi Prisma, Supabase, storage privat, dan job retensi akan ditambahkan pada tahap berikutnya. Seluruh alur
-            antarmuka sudah mengikuti peran Admin, Operator, dan Pimpinan.
+            Login, profil, dan manajemen pengguna memakai Supabase Auth. Data arsip, kode, dan log masih tersimpan di
+            browser ini.
           </span>
         </div>
       </div>

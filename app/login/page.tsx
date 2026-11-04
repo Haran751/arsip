@@ -1,4 +1,5 @@
 ﻿import Icon from "@/components/icon";
+import { loginAction } from "./actions";
 
 export default async function LoginPage({
   searchParams,
@@ -46,81 +47,46 @@ export default async function LoginPage({
               </div>
             </div>
           </div>
-          <div className="login-hero-foot">E-Arsip - Pratinjau antarmuka mode demo frontend.</div>
+          <div className="login-hero-foot">E-Arsip - Sistem Pengelolaan Arsip Digital.</div>
         </aside>
 
         <div className="login-card">
           <h1 className="login-title">Masuk ke aplikasi</h1>
-          <p className="login-sub">
-            Mode demo tanpa database. Pilih salah satu akun di bawah untuk langsung masuk, atau ketik username yang tersedia.
-            Password tidak divalidasi pada mode demo.
-          </p>
+          <p className="login-sub">Gunakan username dan password yang diberikan oleh Admin.</p>
 
-          {error ? <div className="error-box">Username tidak ditemukan. Gunakan salah satu akun demo.</div> : null}
+          {error === "lengkap" ? <div className="error-box">Username dan password wajib diisi.</div> : null}
+          {error === "1" ? <div className="error-box">Username atau password salah, atau akun tidak aktif.</div> : null}
 
-          <form action="/api/demo-login" method="post">
+          <form action={loginAction}>
             <div className="field">
               <label htmlFor="username">Username</label>
               <input
                 id="username"
                 name="username"
                 className="input"
-                placeholder="admin"
-                defaultValue="admin"
+                placeholder="Masukkan username"
                 autoComplete="username"
+                required
               />
             </div>
             <div className="field" style={{ marginTop: 12 }}>
-              <label htmlFor="password">Password (opsional di mode demo)</label>
+              <label htmlFor="password">Password</label>
               <input
                 id="password"
                 name="password"
                 type="password"
                 className="input"
-                placeholder="Bebas, tidak divalidasi di demo"
+                placeholder="Password akun"
                 autoComplete="current-password"
+                required
               />
             </div>
             <button type="submit" className="btn btn-block" style={{ marginTop: 16 }}>
               <Icon name="logout" size={16} /> Masuk
             </button>
           </form>
-
-          <div className="demo-box">
-            <div className="demo-box-title">Akun demo</div>
-            <div className="demo-accounts">
-              <form action="/api/demo-login" method="post" className="demo-account">
-                <input type="hidden" name="username" value="admin" />
-                <button type="submit">
-                  <span>
-                    <strong>Admin</strong> - Rahmat Hidayat
-                  </span>
-                  <small>akses penuh</small>
-                </button>
-              </form>
-              <form action="/api/demo-login" method="post" className="demo-account">
-                <input type="hidden" name="username" value="operator" />
-                <button type="submit">
-                  <span>
-                    <strong>Operator</strong> - Sinta Maharani
-                  </span>
-                  <small>kelola arsip</small>
-                </button>
-              </form>
-              <form action="/api/demo-login" method="post" className="demo-account">
-                <input type="hidden" name="username" value="pimpinan" />
-                <button type="submit">
-                  <span>
-                    <strong>Pimpinan</strong> - Budi Santoso
-                  </span>
-                  <small>lihat laporan</small>
-                </button>
-              </form>
-            </div>
-          </div>
         </div>
       </div>
     </main>
   );
 }
-

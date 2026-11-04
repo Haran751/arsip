@@ -1,23 +1,21 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
-import { demoUsers } from "@/lib/demo-data";
+
+const COOKIE_SESI = ["authjs.session-token", "__Secure-authjs.session-token"];
 
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
-  const username = request.cookies.get("demo_user")?.value;
-  const user = demoUsers.find((item) => item.username === username);
+  const punyaSesi = COOKIE_SESI.some((nama) => request.cookies.has(nama));
 
   if (pathname === "/login") {
-    if (user?.aktif) return NextResponse.redirect(new URL("/beranda", request.url));
+    if (punyaSesi) return NextResponse.redirect(new URL("/beranda", request.url));
     return NextResponse.next();
   }
 
   if (pathname === "/logout") return NextResponse.next();
 
-  if (!user?.aktif) {
-    const response = NextResponse.redirect(new URL("/login", request.url));
-    if (username) response.cookies.set("demo_user", "", { path: "/", maxAge: 0 });
-    return response;
+  if (!punyaSesi) {
+    return NextResponse.redirect(new URL("/login", request.url));
   }
 
   return NextResponse.next();

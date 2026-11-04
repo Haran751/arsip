@@ -208,7 +208,7 @@ export default function ArsipPage() {
       `Keterangan    : ${arsip.keterangan ?? "-"}`,
     ]);
     catatLog("Mengunduh arsip", `${arsip.nomor_arsip} - ${arsip.judul}`, "ekspor");
-    toast("Berkas demo diunduh.");
+    toast("Berkas contoh diunduh.");
   };
 
   const konfirmasiHapus = () => {
@@ -703,7 +703,7 @@ export default function ArsipPage() {
               <small>
                 {detail.file_name
                   ? `${detail.file_type || "Berkas"} - ${formatBytes(detail.file_size)}`
-                  : "Berkas belum diunggah pada mode demo"}
+                  : "Berkas belum diunggah"}
               </small>
             </div>
 
@@ -877,7 +877,7 @@ export default function ArsipPage() {
               <span className="field-hint">
                 {form.file_name
                   ? `${form.file_name} - ${formatBytes(form.file_size)}`
-                  : "Opsional pada mode demo, maksimal 10 MB."}
+                  : "Opsional, maksimal 10 MB."}
               </span>
             </div>
             <div className="field field-full">

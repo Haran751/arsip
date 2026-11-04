@@ -61,7 +61,7 @@ export default function BerandaPage() {
         <div className="banner-content">
           <div>
             <span className="banner-eyebrow">
-              <Icon name="sparkle" size={13} /> Mode demo frontend
+              <Icon name="sparkle" size={13} /> Sistem Arsip Digital
             </span>
             <h2 className="banner-title">
               Arsip rapi,
@@ -69,8 +69,8 @@ export default function BerandaPage() {
               kerja lebih ringan.
             </h2>
             <p className="banner-sub">
-              Kelola arsip digital, atur retensi, dan awasi pemusnahan dalam satu tempat. Semua perubahan pada mode demo ini
-              tersimpan di browser Anda.
+              Kelola arsip digital, atur retensi, dan awasi pemusnahan dalam satu tempat. Perubahan pada data arsip
+              tersimpan otomatis di perangkat ini.
             </p>
           </div>
           <div className="banner-actions">
@@ -78,7 +78,7 @@ export default function BerandaPage() {
               <Icon name="plus" size={16} /> Tambah arsip
             </Link>
             <button type="button" className="btn btn-ghost" onClick={resetDemo}>
-              Reset data demo
+              Reset data contoh
             </button>
           </div>
         </div>

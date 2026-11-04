@@ -12,7 +12,6 @@ import {
 } from "react";
 import {
   arsipList,
-  demoUsers,
   kodeArsipList,
   logList,
   usulanList,
@@ -25,6 +24,12 @@ import {
   type Usulan,
 } from "./demo-data";
 import { hitungRetensi } from "./retensi";
+import {
+  gantiPasswordSendiri,
+  resetPasswordPengguna,
+  simpanPengguna,
+  simpanProfil,
+} from "./actions/user";
 
 const STORAGE_KEY = "earsip-demo-v1";
 
@@ -74,6 +79,10 @@ export type ActionResult = {
   message?: string;
 };
 
+export type UserActionResult = ActionResult & {
+  user?: DemoUser;
+};
+
 type ToastTone = "success" | "error" | "info";
 
 type Toast = {
@@ -111,10 +120,10 @@ type DemoContextValue = {
   importKode: (rows: KodeInput[]) => ActionResult & { created?: number; updated?: number };
   addUsulan: (itemIds: string[], catatan?: string) => ActionResult;
   decideUsulan: (id: string, status: "Disetujui" | "Ditolak") => ActionResult;
-  saveUser: (input: UserInput, id?: string) => ActionResult;
-  resetUserPassword: (id: string) => ActionResult;
-  updateProfile: (patch: Pick<UserInput, "nama" | "email">) => ActionResult;
-  changePassword: (lama: string, baru: string) => ActionResult;
+  saveUser: (input: UserInput, id?: string) => Promise<UserActionResult>;
+  resetUserPassword: (id: string) => Promise<UserActionResult>;
+  updateProfile: (patch: Pick<UserInput, "nama" | "email">) => Promise<UserActionResult>;
+  changePassword: (lama: string, baru: string) => Promise<ActionResult>;
   catatLog: (aksi: string, target: string, jenis: LogEntry["jenis"], sumber?: LogEntry["sumber"]) => void;
   resetDemo: () => void;
   toast: (message: string, tone?: ToastTone) => void;
@@ -126,11 +135,11 @@ function clone<T>(value: T): T {
   return JSON.parse(JSON.stringify(value)) as T;
 }
 
-function seedStore(): DemoStore {
+function seedStore(users: DemoUser[] = []): DemoStore {
   return {
     arsip: clone(arsipList),
     kodeArsip: clone(kodeArsipList),
-    users: clone(demoUsers),
+    users: clone(users),
     usulan: clone(usulanList),
     logs: clone(logList),
   };
@@ -186,20 +195,31 @@ function normalisasiKode(value: string) {
   return value.trim().toUpperCase();
 }
 
-export function DemoProvider({ initialUser, children }: { initialUser: DemoUser; children: ReactNode }) {
-  const [data, setData] = useState<DemoStore>(seedStore);
+export function DemoProvider({
+  initialUser,
+  initialUsers,
+  children,
+}: {
+  initialUser: DemoUser;
+  initialUsers?: DemoUser[];
+  children: ReactNode;
+}) {
+  const [data, setData] = useState<DemoStore>(() =>
+    seedStore(initialUsers?.length ? initialUsers : [initialUser]),
+  );
   const [ready, setReady] = useState(false);
   const [toasts, setToasts] = useState<Toast[]>([]);
   const timers = useRef<number[]>([]);
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
+      const usersAwal = initialUsers?.length ? initialUsers : [initialUser];
       const raw = window.localStorage.getItem(STORAGE_KEY);
       if (raw) {
         try {
           const parsed = JSON.parse(raw) as Partial<DemoStore>;
           if (parsed && Array.isArray(parsed.arsip) && Array.isArray(parsed.kodeArsip)) {
-            setData({ ...seedStore(), ...parsed });
+            setData({ ...seedStore(usersAwal), ...parsed, users: usersAwal });
           }
         } catch {
           window.localStorage.removeItem(STORAGE_KEY);
@@ -208,7 +228,7 @@ export function DemoProvider({ initialUser, children }: { initialUser: DemoUser;
       setReady(true);
     }, 0);
     return () => window.clearTimeout(timer);
-  }, []);
+  }, [initialUser, initialUsers]);
 
   useEffect(() => {
     if (!ready) return;
@@ -447,7 +467,7 @@ export function DemoProvider({ initialUser, children }: { initialUser: DemoUser;
           };
           updated += 1;
         } else {
-          next.unshift({
+          next.push({
             id: uid("kode"),
             kode,
             nama,
@@ -554,88 +574,67 @@ export function DemoProvider({ initialUser, children }: { initialUser: DemoUser;
   );
 
   const saveUser = useCallback(
-    (input: UserInput, id?: string): ActionResult => {
-      const nama = input.nama.trim();
-      const username = input.username.trim().toLowerCase();
-      const email = input.email.trim();
-      if (!nama || !username || !email) return { ok: false, message: "Nama, username, dan email wajib diisi." };
-      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return { ok: false, message: "Format email tidak valid." };
-      if (data.users.some((user) => user.username === username && user.id !== id)) {
-        return { ok: false, message: "Username sudah digunakan." };
-      }
+    async (input: UserInput, id?: string): Promise<UserActionResult> => {
+      const hasil = await simpanPengguna(input, id);
+      if (!hasil.ok || !hasil.user) return hasil;
 
-      const existing = id ? data.users.find((user) => user.id === id) : undefined;
-      if (id && !existing) return { ok: false, message: "Pengguna tidak ditemukan." };
-      if (
-        existing?.role === "Admin" &&
-        existing.aktif &&
-        (input.role !== "Admin" || !input.aktif) &&
-        data.users.filter((user) => user.role === "Admin" && user.aktif).length <= 1
-      ) {
-        return { ok: false, message: "Minimal harus ada satu Admin aktif." };
-      }
-
-      const user: DemoUser = {
-        id: existing?.id ?? uid("usr"),
-        nama,
-        username,
-        email,
-        role: input.role,
-        aktif: input.aktif,
-        last_login: existing?.last_login ?? nowIso(),
-      };
+      const user = hasil.user;
+      const existing = id ? data.users.find((item) => item.id === id) : undefined;
       const nextUsers = existing
         ? data.users.map((item) => (item.id === existing.id ? user : item))
-        : [user, ...data.users];
+        : [user, ...data.users.filter((item) => item.id !== user.id)];
       const log = makeLog(
         currentUser.nama,
         existing ? "Memperbarui pengguna" : "Menambahkan pengguna",
         `${user.nama} (${user.username})`,
         existing ? "ubah" : "buat",
       );
+
       setData(appendLog({ ...data, users: nextUsers }, log));
-      return { ok: true, message: existing ? "Pengguna berhasil diperbarui." : "Pengguna berhasil ditambahkan." };
+      return hasil;
     },
     [currentUser.nama, data],
   );
 
   const resetUserPassword = useCallback(
-    (id: string): ActionResult => {
-      if (!isAdmin) return { ok: false, message: "Hanya Admin yang dapat mereset password." };
-      const user = data.users.find((item) => item.id === id);
-      if (!user) return { ok: false, message: "Pengguna tidak ditemukan." };
-      const log = makeLog(currentUser.nama, "Mereset password pengguna", `${user.nama} (${user.username})`, "ubah");
+    async (id: string): Promise<UserActionResult> => {
+      const hasil = await resetPasswordPengguna(id);
+      if (!hasil.ok) return hasil;
+
+      const log = makeLog(
+        currentUser.nama,
+        "Mereset password pengguna",
+        hasil.user?.nama ?? id,
+        "ubah",
+      );
       setData(appendLog(data, log));
-      return { ok: true, message: `Password ${user.nama} direset ke: EArsip#2026` };
+      return hasil;
     },
-    [currentUser.nama, data, isAdmin],
+    [currentUser.nama, data],
   );
 
   const updateProfile = useCallback(
-    (patch: Pick<UserInput, "nama" | "email">): ActionResult => {
-      const nama = patch.nama.trim();
-      const email = patch.email.trim();
-      if (!nama || !email) return { ok: false, message: "Nama dan email wajib diisi." };
-      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return { ok: false, message: "Format email tidak valid." };
+    async (patch: Pick<UserInput, "nama" | "email">): Promise<UserActionResult> => {
+      const hasil = await simpanProfil({ nama: patch.nama, email: patch.email });
+      if (!hasil.ok || !hasil.user) return hasil;
 
-      const nextUsers = data.users.map((user) =>
-        user.id === currentUser.id ? { ...user, nama, email } : user,
-      );
-      const log = makeLog(currentUser.nama, "Memperbarui profil", `${nama} - ${email}`, "ubah");
+      const user = hasil.user;
+      const nextUsers = data.users.map((item) => (item.id === currentUser.id ? user : item));
+      const log = makeLog(currentUser.nama, "Memperbarui profil", `${user.nama} - ${user.email}`, "ubah");
       setData(appendLog({ ...data, users: nextUsers }, log));
-      return { ok: true, message: "Profil berhasil diperbarui." };
+      return hasil;
     },
     [currentUser, data],
   );
 
   const changePassword = useCallback(
-    (lama: string, baru: string): ActionResult => {
-      if (!lama) return { ok: false, message: "Password lama wajib diisi." };
-      if (baru.length < 6) return { ok: false, message: "Password baru minimal 6 karakter." };
+    async (lama: string, baru: string): Promise<ActionResult> => {
+      const hasil = await gantiPasswordSendiri(lama, baru);
+      if (!hasil.ok) return hasil;
 
       const log = makeLog(currentUser.nama, "Mengganti password", currentUser.username, "ubah");
       setData(appendLog(data, log));
-      return { ok: true, message: "Password berhasil diganti (mode demo)." };
+      return hasil;
     },
     [currentUser, data],
   );
@@ -648,9 +647,9 @@ export function DemoProvider({ initialUser, children }: { initialUser: DemoUser;
   );
 
   const resetDemo = useCallback(() => {
-    setData(seedStore());
-    toast("Data demo dikembalikan ke kondisi awal.", "info");
-  }, [toast]);
+    setData(seedStore(data.users));
+    toast("Data contoh dikembalikan ke kondisi awal.", "info");
+  }, [data.users, toast]);
 
   const value: DemoContextValue = {
     ready,

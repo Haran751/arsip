@@ -322,6 +322,13 @@ kbd {
   min-width: 0;
   display: flex;
   flex-direction: column;
+  transition: margin-left 0.24s ease;
+}
+
+/* Saat sidebar melebar, konten utama bergeser agar tidak tertutup. */
+.sidebar:hover ~ .main,
+.sidebar:focus-within ~ .main {
+  margin-left: 280px;
 }
 
 /* ---------- Topbar ---------- */
@@ -2773,106 +2780,5 @@ html[data-reduce-motion="true"] *::after {
 
   .pref-row {
     align-items: flex-start;
-  }
-}
-
-/* ---------- Daftar Isi Berkas Arsip Aktif ---------- */
-
-.doc-scroll-hint {
-  display: none;
-  margin-bottom: 10px;
-  font-size: 11px;
-  color: var(--muted);
-}
-
-.doc-table-wrap table {
-  min-width: 1820px;
-}
-
-.doc-table th {
-  background: linear-gradient(180deg, #eaf8f0 0%, #f8fcfa 100%);
-  color: #0f6b47;
-}
-
-.doc-table td {
-  vertical-align: top;
-}
-
-.doc-table .cell-uraian {
-  min-width: 320px;
-  max-width: 430px;
-  line-height: 1.55;
-  color: var(--foreground);
-}
-
-.doc-table .cell-note {
-  min-width: 180px;
-  max-width: 240px;
-  line-height: 1.55;
-  color: var(--muted);
-}
-
-.doc-table .cell-num,
-.doc-table .cell-center {
-  text-align: center;
-  white-space: nowrap;
-  font-variant-numeric: tabular-nums;
-}
-
-.doc-table .cell-loc {
-  white-space: nowrap;
-}
-
-.row-actions {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  white-space: nowrap;
-}
-
-.icon-action {
-  width: 30px;
-  height: 30px;
-  display: grid;
-  place-items: center;
-  border-radius: 9px;
-  border: 1px solid var(--border);
-  background: #ffffff;
-  color: var(--muted);
-  cursor: pointer;
-  transition: background 0.14s ease, color 0.14s ease, border-color 0.14s ease;
-}
-
-.icon-action:hover {
-  background: var(--tint);
-  border-color: var(--border-strong);
-  color: var(--primary-dark);
-}
-
-.icon-action.danger:hover {
-  background: #fdecec;
-  border-color: rgba(184, 58, 58, 0.25);
-  color: #b83a3a;
-}
-
-.meta-item.meta-wide {
-  grid-column: 1 / -1;
-}
-
-.doc-form-title {
-  grid-column: 1 / -1;
-  margin-top: 4px;
-  padding-bottom: 6px;
-  border-bottom: 1px dashed var(--border);
-  font-size: 11px;
-  font-weight: 800;
-  letter-spacing: 0.07em;
-  text-transform: uppercase;
-  color: var(--primary-dark);
-}
-
-@media (max-width: 900px) {
-  .doc-scroll-hint {
-    display: block;
   }
 }

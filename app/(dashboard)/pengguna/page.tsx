@@ -56,7 +56,7 @@ export default function PenggunaPage() {
     setFormOpen(true);
   };
 
-  const simpan = (event: React.FormEvent<HTMLFormElement>) => {
+  const simpan = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     const input: UserInput = {
       nama: form.nama,
@@ -65,7 +65,7 @@ export default function PenggunaPage() {
       role: form.role,
       aktif: form.aktif,
     };
-    const hasil = saveUser(input, editing?.id);
+    const hasil = await saveUser(input, editing?.id);
     if (!hasil.ok) {
       setFormError(hasil.message ?? "Gagal menyimpan pengguna.");
       return;
@@ -74,9 +74,9 @@ export default function PenggunaPage() {
     setFormOpen(false);
   };
 
-  const reset = () => {
+  const reset = async () => {
     if (!resetTarget) return;
-    const hasil = resetUserPassword(resetTarget.id);
+    const hasil = await resetUserPassword(resetTarget.id);
     toast(hasil.message ?? (hasil.ok ? "Password direset." : "Gagal mereset password."), hasil.ok ? "success" : "error");
     if (hasil.ok) setResetTarget(null);
   };
@@ -217,8 +217,7 @@ export default function PenggunaPage() {
         </div>
 
         <div className="form-note">
-          Pengguna baru tersimpan pada data demo di browser. Login untuk akun baru akan aktif setelah autentikasi berbasis
-          database terhubung.
+          Akun baru langsung aktif dan dapat dipakai untuk login. Password awal wajib diganti saat login pertama.
         </div>
       </div>
 

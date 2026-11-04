@@ -1,8 +1,49 @@
 import type { DemoUser, Role } from "@/lib/demo-data";
 
 const BASE = (process.env.SUPABASE_URL ?? "").replace(/\/+$/, "");
-const KEY = process.env.SUPABASE_SERVICE_ROLE_KEY ?? "";
+const KEY = (process.env.SUPABASE_SERVICE_ROLE_KEY ?? "");
 const DOMAIN_AKUN = "earsip.local";
+
+export const ID_ADMIN_LOKAL = "lokal-admin";
+const USERNAME_ADMIN_LOKAL = "admin";
+const PASSWORD_ADMIN_LOKAL = process.env.ADMIN_LOKAL_PASSWORD ?? "admin123";
+
+// Cek apakah Supabase sudah diisi nilai asli (bukan placeholder di .env).
+export function supabaseTerkonfigurasi() {
+  const placeholder = (nilai: string) =>
+    !nilai || /xxx|your|ganti|isi|contoh/i.test(nilai);
+  return !placeholder(BASE) && !placeholder(KEY);
+}
+
+// Fallback login lokal, hanya untuk development saat Supabase belum siap.
+export function authLokalAktif() {
+  return process.env.NODE_ENV !== "production" && !supabaseTerkonfigurasi();
+}
+
+export function penggunaLokalAdmin(): SupabaseAuthUser {
+  return {
+    id: ID_ADMIN_LOKAL,
+    email: `${USERNAME_ADMIN_LOKAL}@${DOMAIN_AKUN}`,
+    last_sign_in_at: new Date().toISOString(),
+    banned_until: null,
+    user_metadata: {
+      nama: "Administrator Lokal",
+      username: USERNAME_ADMIN_LOKAL,
+      role: "Admin",
+      aktif: true,
+      must_change_password: false,
+    },
+    app_metadata: {},
+  };
+}
+
+export function autentikasiLokal(username: string, password: string) {
+  if (!authLokalAktif()) return null;
+  const target = username.trim().toLowerCase();
+  const cocokUser =
+    target === USERNAME_ADMIN_LOKAL || target === `${USERNAME_ADMIN_LOKAL}@${DOMAIN_AKUN}`;
+  return cocokUser && password === PASSWORD_ADMIN_LOKAL ? penggunaLokalAdmin() : null;
+}
 
 export type SupabaseAuthUser = {
   id: string;
@@ -18,7 +59,7 @@ type DaftarPenggunaResponse = {
 };
 
 function headerAdmin() {
-  if (!BASE || !KEY) {
+  if (!supabaseTerkonfigurasi()) {
     throw new Error("SUPABASE_URL dan SUPABASE_SERVICE_ROLE_KEY belum diisi di .env");
   }
   return {
@@ -52,6 +93,11 @@ export function emailUntukUsername(username: string) {
 }
 
 export async function ambilPenggunaAuth(id: string) {
+  if (!supabaseTerkonfigurasi()) {
+    const lokal = penggunaLokalAdmin();
+    return id === lokal.id ? lokal : null;
+  }
+
   try {
     return await panggilAuth<SupabaseAuthUser>(`/auth/v1/admin/users/${id}`);
   } catch {
@@ -60,6 +106,10 @@ export async function ambilPenggunaAuth(id: string) {
 }
 
 export async function daftarPenggunaAuth(): Promise<SupabaseAuthUser[]> {
+  if (!supabaseTerkonfigurasi()) {
+    return [penggunaLokalAdmin()];
+  }
+
   const hasil: SupabaseAuthUser[] = [];
 
   for (let halaman = 1; halaman <= 10; halaman += 1) {

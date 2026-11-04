@@ -2,10 +2,12 @@ import NextAuth from "next-auth";
 import Credentials from "next-auth/providers/credentials";
 import { z } from "zod";
 import {
+  autentikasiLokal,
   cariPenggunaAuthByUsername,
   emailUntukUsername,
   keDemoUserAuth,
   panggilAuth,
+  supabaseTerkonfigurasi,
   type SupabaseAuthUser,
 } from "@/lib/supabase-admin";
 
@@ -42,6 +44,22 @@ export const { handlers, auth, signIn, signOut, unstable_update } = NextAuth({
         if (!parsed.success) return null;
 
         const { username, password } = parsed.data;
+
+        // Mode lokal: dipakai saat Supabase belum dikonfigurasi.
+        if (!supabaseTerkonfigurasi()) {
+          const lokal = autentikasiLokal(username, password);
+          if (!lokal) return null;
+          const userLokal = keDemoUserAuth(lokal);
+          if (!userLokal || !userLokal.aktif) return null;
+          return {
+            id: userLokal.id,
+            name: userLokal.nama,
+            email: userLokal.email,
+            role: userLokal.role,
+            aktif: userLokal.aktif,
+            must_change_password: false,
+          };
+        }
 
         let email = emailUntukUsername(username);
         if (!username.includes("@")) {

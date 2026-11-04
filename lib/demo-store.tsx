@@ -12,11 +12,13 @@ import {
 } from "react";
 import {
   arsipList,
+  folderList,
   kodeArsipList,
   logList,
   usulanList,
   type Arsip,
   type DemoUser,
+  type Folder,
   type KodeArsip,
   type LogEntry,
   type Role,
@@ -35,6 +37,7 @@ const STORAGE_KEY = "earsip-demo-v1";
 
 export type DemoStore = {
   arsip: Arsip[];
+  folders: Folder[];
   kodeArsip: KodeArsip[];
   users: DemoUser[];
   usulan: Usulan[];
@@ -45,11 +48,17 @@ export type ArsipInput = {
   nomor_arsip: string;
   judul: string;
   kode: string;
+  folder_id: string;
   tanggal_arsip: string;
   keterangan?: string;
   file_name?: string;
   file_size?: number;
   file_type?: string;
+};
+
+export type FolderInput = {
+  nama: string;
+  keterangan?: string;
 };
 
 export type KodeInput = {
@@ -115,6 +124,8 @@ type DemoContextValue = {
   nextNomorArsip: (tanggal: string) => string;
   saveArsip: (input: ArsipInput, id?: string) => ActionResult;
   deleteArsip: (id: string) => ActionResult;
+  saveFolder: (input: FolderInput, id?: string) => ActionResult;
+  deleteFolder: (id: string) => ActionResult;
   saveKode: (input: KodeInput, id?: string) => ActionResult;
   deleteKode: (id: string) => ActionResult;
   importKode: (rows: KodeInput[]) => ActionResult & { created?: number; updated?: number };
@@ -138,6 +149,7 @@ function clone<T>(value: T): T {
 function seedStore(users: DemoUser[] = []): DemoStore {
   return {
     arsip: clone(arsipList),
+    folders: clone(folderList),
     kodeArsip: clone(kodeArsipList),
     users: clone(users),
     usulan: clone(usulanList),
@@ -219,7 +231,16 @@ export function DemoProvider({
         try {
           const parsed = JSON.parse(raw) as Partial<DemoStore>;
           if (parsed && Array.isArray(parsed.arsip) && Array.isArray(parsed.kodeArsip)) {
-            setData({ ...seedStore(usersAwal), ...parsed, users: usersAwal });
+            const seed = seedStore(usersAwal);
+            const folders =
+              Array.isArray(parsed.folders) && parsed.folders.length ? parsed.folders : seed.folders;
+            const validFolderIds = new Set(folders.map((folder) => folder.id));
+            const folderDefault = folders[0]?.id ?? seed.folders[0]?.id ?? "fold-001";
+            const arsip = parsed.arsip.map((item) => ({
+              ...item,
+              folder_id: item.folder_id && validFolderIds.has(item.folder_id) ? item.folder_id : folderDefault,
+            }));
+            setData({ ...seed, ...parsed, folders, arsip, users: usersAwal });
           }
         } catch {
           window.localStorage.removeItem(STORAGE_KEY);
@@ -309,6 +330,13 @@ export function DemoProvider({
       if (!nomor || !judul || !input.tanggal_arsip || !kode) {
         return { ok: false, message: "Nomor, judul, tanggal, dan kode arsip wajib diisi." };
       }
+      const folderId = input.folder_id;
+      if (!folderId) {
+        return { ok: false, message: "Pilih folder arsip terlebih dahulu." };
+      }
+      if (!data.folders.some((folder) => folder.id === folderId)) {
+        return { ok: false, message: "Folder arsip tidak ditemukan." };
+      }
       if (data.arsip.some((arsip) => arsip.nomor_arsip.toUpperCase() === nomor && arsip.id !== id)) {
         return { ok: false, message: "Nomor arsip sudah digunakan." };
       }
@@ -329,6 +357,7 @@ export function DemoProvider({
         nomor_arsip: nomor,
         judul,
         kode,
+        folder_id: folderId,
         tanggal_arsip: input.tanggal_arsip,
         status_retensi: hitung.status,
         akhir_retensi: hitung.akhirRetensi,
@@ -380,6 +409,68 @@ export function DemoProvider({
         ),
       );
       return { ok: true, message: "Arsip berhasil dihapus." };
+    },
+    [currentUser.nama, data],
+  );
+
+  const saveFolder = useCallback(
+    (input: FolderInput, id?: string): ActionResult => {
+      const nama = input.nama.trim();
+      if (!nama) return { ok: false, message: "Nama folder wajib diisi." };
+      if (
+        data.folders.some(
+          (folder) => folder.nama.toLowerCase() === nama.toLowerCase() && folder.id !== id,
+        )
+      ) {
+        return { ok: false, message: "Nama folder sudah digunakan." };
+      }
+
+      const existing = id ? data.folders.find((folder) => folder.id === id) : undefined;
+      if (id && !existing) return { ok: false, message: "Folder tidak ditemukan." };
+
+      const folder: Folder = {
+        id: existing?.id ?? uid("fold"),
+        nama,
+        keterangan: input.keterangan?.trim() || undefined,
+        pembuat: existing?.pembuat ?? currentUser.nama,
+        created_at: existing?.created_at ?? nowIso(),
+      };
+
+      const nextFolders = existing
+        ? data.folders.map((item) => (item.id === existing.id ? folder : item))
+        : [folder, ...data.folders];
+
+      const log = makeLog(
+        currentUser.nama,
+        existing ? "Memperbarui folder arsip" : "Menambahkan folder arsip",
+        folder.nama,
+        existing ? "ubah" : "buat",
+      );
+
+      setData(appendLog({ ...data, folders: nextFolders }, log));
+      return { ok: true, message: existing ? "Folder berhasil diperbarui." : "Folder berhasil dibuat." };
+    },
+    [currentUser.nama, data],
+  );
+
+  const deleteFolder = useCallback(
+    (id: string): ActionResult => {
+      const folder = data.folders.find((item) => item.id === id);
+      if (!folder) return { ok: false, message: "Folder tidak ditemukan." };
+      const jumlah = data.arsip.filter((arsip) => arsip.folder_id === id).length;
+      if (jumlah > 0) {
+        return {
+          ok: false,
+          message: `Folder masih berisi ${jumlah} arsip. Pindahkan atau hapus arsip terlebih dahulu.`,
+        };
+      }
+      if (data.folders.length <= 1) {
+        return { ok: false, message: "Minimal satu folder harus tersedia." };
+      }
+
+      const log = makeLog(currentUser.nama, "Menghapus folder arsip", folder.nama, "hapus");
+      setData(appendLog({ ...data, folders: data.folders.filter((item) => item.id !== id) }, log));
+      return { ok: true, message: "Folder berhasil dihapus." };
     },
     [currentUser.nama, data],
   );
@@ -663,6 +754,8 @@ export function DemoProvider({
     nextNomorArsip,
     saveArsip,
     deleteArsip,
+    saveFolder,
+    deleteFolder,
     saveKode,
     deleteKode,
     importKode,

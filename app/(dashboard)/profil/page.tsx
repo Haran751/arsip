@@ -135,9 +135,6 @@ export default function ProfilPage() {
             <h2 className="h2">Aktivitas Saya</h2>
             <p className="sub">Lima aktivitas terakhir yang tercatat atas nama Anda.</p>
           </div>
-          <Link href="/log" className="btn btn-ghost btn-sm">
-            Buka log
-          </Link>
         </div>
         <ul className="timeline">
           {aktivitas.map((log) => (

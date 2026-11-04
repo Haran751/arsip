@@ -30,7 +30,7 @@ const masuk = await fetch(`${base}/api/auth/callback/credentials`, {
 simpanCookie(masuk);
 console.log("login:", masuk.status);
 
-const halaman = ["/beranda", "/arsip", "/kode-arsip", "/pemusnahan", "/pengguna", "/log", "/profil", "/pengaturan", "/ganti-password"];
+const halaman = ["/beranda", "/arsip", "/kode-arsip", "/pemusnahan", "/pengguna", "/profil", "/pengaturan", "/ganti-password"];
 
 for (const path of halaman) {
   const res = await fetch(`${base}${path}`, { headers: { Cookie: headerCookie() }, redirect: "manual" });

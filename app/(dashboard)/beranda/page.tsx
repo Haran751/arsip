@@ -200,9 +200,6 @@ export default function BerandaPage() {
               <h2 className="h2">Aktivitas Terbaru</h2>
               <p className="sub">Jejak audit terakhir yang tercatat.</p>
             </div>
-            <Link href="/log" className="btn btn-ghost btn-sm">
-              Buka log
-            </Link>
           </div>
           <ul className="timeline">
             {logTerbaru.map((log) => (

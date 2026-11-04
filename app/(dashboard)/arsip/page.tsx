@@ -5,8 +5,8 @@ import Drawer from "@/components/drawer";
 import Icon from "@/components/icon";
 import Modal from "@/components/modal";
 import StatusBadge from "@/components/status-badge";
-import { formatTanggal, formatWaktu, inisial, type Arsip } from "@/lib/demo-data";
-import { useDemo, type ArsipInput } from "@/lib/demo-store";
+import { formatTanggal, formatWaktu, inisial, type Arsip, type Folder } from "@/lib/demo-data";
+import { useDemo, type ArsipInput, type FolderInput } from "@/lib/demo-store";
 import { downloadDokumenDemo, formatBytes } from "@/lib/export";
 import { hitungRetensi } from "@/lib/retensi";
 
@@ -29,15 +29,21 @@ const BULAN = [
 
 type ModeTanggal = "" | "satu" | "rentang";
 
-type FormState = {
+type ArsipFormState = {
   nomor_arsip: string;
   judul: string;
   kode: string;
+  folder_id: string;
   tanggal_arsip: string;
   keterangan: string;
   file_name: string;
   file_size?: number;
   file_type: string;
+};
+
+type FolderFormState = {
+  nama: string;
+  keterangan: string;
 };
 
 function today() {
@@ -48,7 +54,31 @@ function today() {
 }
 
 export default function ArsipPage() {
-  const { ready, data, canManage, saveArsip, deleteArsip, nextNomorArsip, catatLog, toast } = useDemo();
+  const {
+    ready,
+    data,
+    canManage,
+    saveArsip,
+    deleteArsip,
+    saveFolder,
+    deleteFolder,
+    nextNomorArsip,
+    catatLog,
+    toast,
+  } = useDemo();
+
+  // Mode navigasi: folder-first
+  const [folderAktifId, setFolderAktifId] = useState<string | null>(null);
+  const [tampilanSemua, setTampilanSemua] = useState(false);
+
+  // Folder modal state
+  const [folderModalOpen, setFolderModalOpen] = useState(false);
+  const [editingFolder, setEditingFolder] = useState<Folder | null>(null);
+  const [folderForm, setFolderForm] = useState<FolderFormState>({ nama: "", keterangan: "" });
+  const [folderFormError, setFolderFormError] = useState("");
+  const [hapusFolder, setHapusFolder] = useState<Folder | null>(null);
+
+  // Filter & pencarian arsip
   const [cari, setCari] = useState("");
   const [tahun, setTahun] = useState("");
   const [bulan, setBulan] = useState("");
@@ -59,14 +89,17 @@ export default function ArsipPage() {
   const [tanggal1, setTanggal1] = useState("");
   const [tanggal2, setTanggal2] = useState("");
   const [page, setPage] = useState(1);
+
+  // Arsip form & detail modal
   const [formOpen, setFormOpen] = useState(false);
   const [editing, setEditing] = useState<Arsip | null>(null);
   const [detailId, setDetailId] = useState<string | null>(null);
   const [hapus, setHapus] = useState<Arsip | null>(null);
-  const [form, setForm] = useState<FormState>({
+  const [form, setForm] = useState<ArsipFormState>({
     nomor_arsip: "",
     judul: "",
     kode: "",
+    folder_id: "",
     tanggal_arsip: "",
     keterangan: "",
     file_name: "",
@@ -75,6 +108,22 @@ export default function ArsipPage() {
   const [formError, setFormError] = useState("");
   const paramsHandled = useRef(false);
 
+  // Folder aktif objek
+  const folderAktif = useMemo(
+    () => (folderAktifId ? data.folders.find((f) => f.id === folderAktifId) ?? null : null),
+    [data.folders, folderAktifId],
+  );
+
+  // Hitung jumlah arsip per folder
+  const jumlahArsipPerFolder = useMemo(() => {
+    const counts = new Map<string, number>();
+    data.arsip.forEach((item) => {
+      counts.set(item.folder_id, (counts.get(item.folder_id) ?? 0) + 1);
+    });
+    return counts;
+  }, [data.arsip]);
+
+  // Daftar tahun dan pengguna untuk opsi filter
   const daftarTahun = useMemo(
     () => Array.from(new Set(data.arsip.map((arsip) => arsip.tanggal_arsip.slice(0, 4)))).sort().reverse(),
     [data.arsip],
@@ -85,9 +134,18 @@ export default function ArsipPage() {
     [data.arsip],
   );
 
+  // Kumpulan arsip berdasarkan konteks (folder aktif atau semua)
+  const arsipTergolong = useMemo(() => {
+    if (folderAktifId) {
+      return data.arsip.filter((item) => item.folder_id === folderAktifId);
+    }
+    return data.arsip;
+  }, [data.arsip, folderAktifId]);
+
+  // Filter arsip
   const filtered = useMemo(() => {
     const kata = cari.trim().toLowerCase();
-    return data.arsip
+    return arsipTergolong
       .filter((arsip) => {
         const cocokCari =
           !kata ||
@@ -109,7 +167,7 @@ export default function ArsipPage() {
         return cocokCari && cocokTahun && cocokBulan && cocokStatus && cocokKode && cocokPengguna && cocokTanggal;
       })
       .sort((a, b) => b.tanggal_arsip.localeCompare(a.tanggal_arsip));
-  }, [bulan, cari, data.arsip, kode, modeTanggal, pengguna, status, tahun, tanggal1, tanggal2]);
+  }, [arsipTergolong, bulan, cari, kode, modeTanggal, pengguna, status, tahun, tanggal1, tanggal2]);
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
   const halaman = Math.min(page, totalPages);
@@ -118,15 +176,73 @@ export default function ArsipPage() {
   const akhir = Math.min(halaman * PAGE_SIZE, filtered.length);
 
   const detail = detailId ? (data.arsip.find((arsip) => arsip.id === detailId) ?? null) : null;
+  const detailFolder = detail ? data.folders.find((f) => f.id === detail.folder_id) : null;
 
+  // --- AKSI FOLDER ---
+  const bukaTambahFolder = () => {
+    setEditingFolder(null);
+    setFolderForm({ nama: "", keterangan: "" });
+    setFolderFormError("");
+    setFolderModalOpen(true);
+  };
+
+  const bukaUbahFolder = (f: Folder) => {
+    setEditingFolder(f);
+    setFolderForm({ nama: f.nama, keterangan: f.keterangan ?? "" });
+    setFolderFormError("");
+    setFolderModalOpen(true);
+  };
+
+  const simpanFolder = (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    const input: FolderInput = {
+      nama: folderForm.nama.trim(),
+      keterangan: folderForm.keterangan.trim() || undefined,
+    };
+    const hasil = saveFolder(input, editingFolder?.id);
+    if (!hasil.ok) {
+      setFolderFormError(hasil.message ?? "Gagal menyimpan folder.");
+      return;
+    }
+    toast(hasil.message ?? "Folder disimpan.");
+    setFolderModalOpen(false);
+  };
+
+  const konfirmasiHapusFolder = () => {
+    if (!hapusFolder) return;
+    const hasil = deleteFolder(hapusFolder.id);
+    toast(hasil.message ?? (hasil.ok ? "Folder dihapus." : "Gagal menghapus folder."), hasil.ok ? "success" : "error");
+    if (hasil.ok) {
+      if (folderAktifId === hapusFolder.id) {
+        setFolderAktifId(null);
+      }
+      setHapusFolder(null);
+    }
+  };
+
+  const bukaFolder = (id: string) => {
+    setFolderAktifId(id);
+    setTampilanSemua(false);
+    setPage(1);
+  };
+
+  const kembaliKeSemuaFolder = () => {
+    setFolderAktifId(null);
+    setTampilanSemua(false);
+    setPage(1);
+  };
+
+  // --- AKSI ARSIP ---
   const bukaTambah = () => {
     if (!canManage || data.kodeArsip.length === 0) return;
     const tanggal = today();
+    const targetFolderId = folderAktifId ?? data.folders[0]?.id ?? "";
     setEditing(null);
     setForm({
       nomor_arsip: nextNomorArsip(tanggal),
       judul: "",
       kode: data.kodeArsip[0]?.kode ?? "",
+      folder_id: targetFolderId,
       tanggal_arsip: tanggal,
       keterangan: "",
       file_name: "",
@@ -136,7 +252,7 @@ export default function ArsipPage() {
     setFormOpen(true);
   };
 
-  // Membuka form/detail dari tautan cepat (bottom navbar atau pencarian Ctrl+K).
+  // Menangani URL params (?baru=1, ?detail=..., ?folder=...)
   /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => {
     if (!ready || paramsHandled.current) return;
@@ -144,13 +260,26 @@ export default function ArsipPage() {
     const params = new URLSearchParams(window.location.search);
     const detailParam = params.get("detail");
     const cariParam = params.get("cari");
+    const folderParam = params.get("folder");
+
     if (cariParam) setCari(cariParam);
-    if (detailParam && data.arsip.some((arsip) => arsip.id === detailParam)) {
-      setDetailId(detailParam);
+
+    if (folderParam && data.folders.some((f) => f.id === folderParam)) {
+      setFolderAktifId(folderParam);
     }
+
+    if (detailParam) {
+      const targetArsip = data.arsip.find((item) => item.id === detailParam);
+      if (targetArsip) {
+        setFolderAktifId(targetArsip.folder_id);
+        setDetailId(detailParam);
+      }
+    }
+
     if (params.get("baru") === "1") {
       bukaTambah();
     }
+
     if (params.toString()) {
       window.history.replaceState(null, "", window.location.pathname);
     }
@@ -164,6 +293,7 @@ export default function ArsipPage() {
       nomor_arsip: arsip.nomor_arsip,
       judul: arsip.judul,
       kode: arsip.kode,
+      folder_id: arsip.folder_id,
       tanggal_arsip: arsip.tanggal_arsip,
       keterangan: arsip.keterangan ?? "",
       file_name: arsip.file_name ?? "",
@@ -181,6 +311,7 @@ export default function ArsipPage() {
       nomor_arsip: form.nomor_arsip,
       judul: form.judul,
       kode: form.kode,
+      folder_id: form.folder_id,
       tanggal_arsip: form.tanggal_arsip,
       keterangan: form.keterangan,
       file_name: form.file_name || undefined,
@@ -197,7 +328,9 @@ export default function ArsipPage() {
   };
 
   const unduh = (arsip: Arsip) => {
+    const fNama = data.folders.find((f) => f.id === arsip.folder_id)?.nama ?? "-";
     downloadDokumenDemo(arsip.nomor_arsip, arsip.judul, [
+      `Folder        : ${fNama}`,
       `Kode arsip    : ${arsip.kode}`,
       `Tanggal arsip : ${formatTanggal(arsip.tanggal_arsip)}`,
       `Status        : ${arsip.status_retensi}`,
@@ -255,416 +388,519 @@ export default function ArsipPage() {
     );
   }, [data.kodeArsip, detail]);
 
+  // Menentukan apakah berada di tampilan daftar folder utama
+  const beradaDiDaftarFolder = !folderAktifId && !tampilanSemua;
+
   return (
     <>
-      <div className="card">
-        <div className="section-head">
-          <div>
-            <h2 className="h2">Daftar Arsip</h2>
-            <p className="sub">Cari, filter, tambah, ubah, dan unduh arsip digital.</p>
-          </div>
-          <div className="actions-row">
-            {aktifFilter ? (
-              <button type="button" className="btn btn-ghost btn-sm" onClick={resetFilter}>
-                Reset filter
-              </button>
-            ) : null}
-            <button
-              type="button"
-              className="btn"
-              onClick={bukaTambah}
-              disabled={!canManage || data.kodeArsip.length === 0}
-              title={
-                !canManage
-                  ? "Pimpinan hanya dapat melihat"
-                  : data.kodeArsip.length === 0
-                    ? "Tambahkan kode arsip dahulu"
-                    : ""
-              }
-            >
-              <Icon name="plus" size={16} /> Tambah Arsip
-            </button>
-          </div>
-        </div>
-
-        <div className="toolbar">
-          <input
-            className="input input-search"
-            placeholder="Cari nomor, judul, kode, atau pembuat..."
-            value={cari}
-            onChange={(event) => {
-              setCari(event.target.value);
-              setPage(1);
-            }}
-          />
-          <select
-            className="select"
-            value={tahun}
-            onChange={(event) => {
-              setTahun(event.target.value);
-              setPage(1);
-            }}
-            aria-label="Filter tahun"
-          >
-            <option value="">Semua tahun</option>
-            {daftarTahun.map((item) => (
-              <option key={item} value={item}>
-                Tahun {item}
-              </option>
-            ))}
-          </select>
-          <select
-            className="select"
-            value={bulan}
-            onChange={(event) => {
-              setBulan(event.target.value);
-              setPage(1);
-            }}
-            aria-label="Filter bulan"
-          >
-            <option value="">Semua bulan</option>
-            {BULAN.map(([value, label]) => (
-              <option key={value} value={value}>
-                {label}
-              </option>
-            ))}
-          </select>
-          <select
-            className="select"
-            value={modeTanggal}
-            onChange={(event) => {
-              const mode = event.target.value as ModeTanggal;
-              setModeTanggal(mode);
-              if (!mode) {
-                setTanggal1("");
-                setTanggal2("");
-              }
-              setPage(1);
-            }}
-            aria-label="Mode tanggal"
-          >
-            <option value="">Semua tanggal</option>
-            <option value="satu">Satu tanggal</option>
-            <option value="rentang">Rentang tanggal</option>
-          </select>
-          {modeTanggal === "satu" ? (
-            <input
-              type="date"
-              className="input"
-              value={tanggal1}
-              onChange={(event) => {
-                setTanggal1(event.target.value);
-                setPage(1);
-              }}
-              aria-label="Tanggal arsip"
-            />
-          ) : null}
-          {modeTanggal === "rentang" ? (
-            <>
-              <input
-                type="date"
-                className="input"
-                value={tanggal1}
-                onChange={(event) => {
-                  setTanggal1(event.target.value);
-                  setPage(1);
-                }}
-                aria-label="Tanggal mulai"
-              />
-              <input
-                type="date"
-                className="input"
-                value={tanggal2}
-                onChange={(event) => {
-                  setTanggal2(event.target.value);
-                  setPage(1);
-                }}
-                aria-label="Tanggal akhir"
-              />
-            </>
-          ) : null}
-          <select
-            className="select"
-            value={status}
-            onChange={(event) => {
-              setStatus(event.target.value);
-              setPage(1);
-            }}
-            aria-label="Filter status retensi"
-          >
-            <option value="">Semua status</option>
-            <option value="Aktif">Aktif</option>
-            <option value="Inaktif">Inaktif</option>
-            <option value="Permanen">Permanen</option>
-          </select>
-          <select
-            className="select"
-            value={kode}
-            onChange={(event) => {
-              setKode(event.target.value);
-              setPage(1);
-            }}
-            aria-label="Filter kode arsip"
-          >
-            <option value="">Semua kode</option>
-            {data.kodeArsip.map((item) => (
-              <option key={item.id} value={item.kode}>
-                {item.kode} - {item.nama}
-              </option>
-            ))}
-          </select>
-          <select
-            className="select"
-            value={pengguna}
-            onChange={(event) => {
-              setPengguna(event.target.value);
-              setPage(1);
-            }}
-            aria-label="Filter pengguna penambah"
-          >
-            <option value="">Semua pengguna</option>
-            {daftarPengguna.map((item) => (
-              <option key={item} value={item}>
-                {item}
-              </option>
-            ))}
-          </select>
-        </div>
-
-        <div className="chips">
-          {tahun ? (
-            <span className="chip">
-              Tahun: <strong>{tahun}</strong>
-              <button type="button" onClick={() => setTahun("")} aria-label="Hapus filter tahun">
-                &times;
-              </button>
-            </span>
-          ) : null}
-          {bulan ? (
-            <span className="chip">
-              Bulan: <strong>{BULAN.find(([value]) => value === bulan)?.[1]}</strong>
-              <button type="button" onClick={() => setBulan("")} aria-label="Hapus filter bulan">
-                &times;
-              </button>
-            </span>
-          ) : null}
-          {modeTanggal ? (
-            <span className="chip">
-              {modeTanggal === "satu" ? "Tanggal" : "Rentang"}:{" "}
-              <strong>
-                {tanggal1 || "-"}
-                {modeTanggal === "rentang" ? ` s.d. ${tanggal2 || "-"}` : ""}
-              </strong>
+      {beradaDiDaftarFolder ? (
+        // ================= TAMPILAN 1: FOLDER-FIRST (DAFTAR FOLDER) =================
+        <div className="card">
+          <div className="section-head">
+            <div>
+              <h2 className="h2">Folder Arsip</h2>
+              <p className="sub">
+                Kelola arsip per folder kerja. Buka salah satu folder untuk melihat atau menambahkan arsip di dalamnya.
+              </p>
+            </div>
+            <div className="actions-row">
               <button
                 type="button"
+                className="btn btn-ghost btn-sm"
                 onClick={() => {
-                  setModeTanggal("");
-                  setTanggal1("");
-                  setTanggal2("");
-                }}
-                aria-label="Hapus filter tanggal"
-              >
-                &times;
-              </button>
-            </span>
-          ) : null}
-          {status ? (
-            <span className="chip">
-              Status: <strong>{status}</strong>
-              <button type="button" onClick={() => setStatus("")} aria-label="Hapus filter status">
-                &times;
-              </button>
-            </span>
-          ) : null}
-          {kode ? (
-            <span className="chip">
-              Kode: <strong>{kode}</strong>
-              <button type="button" onClick={() => setKode("")} aria-label="Hapus filter kode">
-                &times;
-              </button>
-            </span>
-          ) : null}
-          {pengguna ? (
-            <span className="chip">
-              Pengguna: <strong>{pengguna}</strong>
-              <button type="button" onClick={() => setPengguna("")} aria-label="Hapus filter pengguna">
-                &times;
-              </button>
-            </span>
-          ) : null}
-          {cari ? (
-            <span className="chip">
-              Pencarian: <strong>{cari}</strong>
-              <button
-                type="button"
-                onClick={() => {
-                  setCari("");
+                  setTampilanSemua(true);
                   setPage(1);
                 }}
-                aria-label="Hapus pencarian"
               >
-                &times;
+                <Icon name="archive" size={15} /> Lihat Semua Arsip ({data.arsip.length})
               </button>
-            </span>
-          ) : null}
-          <span className="chip">
-            Total: <strong>{filtered.length} arsip</strong>
-          </span>
-        </div>
-
-        {!canManage ? (
-          <div className="form-note" style={{ marginBottom: 14 }}>
-            Anda masuk sebagai Pimpinan. Daftar arsip dapat dilihat dan diunduh, tetapi perubahan data hanya untuk Admin dan
-            Operator.
+              {canManage ? (
+                <button type="button" className="btn" onClick={bukaTambahFolder}>
+                  <Icon name="plus" size={16} /> Buat Folder
+                </button>
+              ) : null}
+            </div>
           </div>
-        ) : null}
 
-        <div className="table-wrap">
-          <table>
-            <thead>
-              <tr>
-                <th>Judul</th>
-                <th>Kode</th>
-                <th>Ditambahkan Oleh</th>
-                <th>Disimpan Sampai</th>
-                <th style={{ width: 56 }}>Aksi</th>
-              </tr>
-            </thead>
-            <tbody>
-              {!ready
-                ? Array.from({ length: 5 }).map((_, index) => (
-                    <tr key={`skeleton-${index}`}>
-                      <td>
-                        <div className="skeleton skeleton-text" style={{ width: "78%" }} />
-                        <div className="skeleton skeleton-text" style={{ width: "38%", marginBottom: 0 }} />
-                      </td>
-                      <td>
-                        <div className="skeleton skeleton-text" style={{ width: 56, marginBottom: 0 }} />
-                      </td>
-                      <td>
-                        <div className="skeleton skeleton-text" style={{ width: 120, marginBottom: 0 }} />
-                      </td>
-                      <td>
-                        <div className="skeleton skeleton-text" style={{ width: 90, marginBottom: 0 }} />
-                      </td>
-                      <td>
-                        <div className="skeleton skeleton-circle" />
-                      </td>
-                    </tr>
-                  ))
-                : paged.map((arsip) => (
-                    <tr key={arsip.id} className="row-click" onClick={() => setDetailId(arsip.id)}>
-                      <td>
-                        <div className="cell-title">{arsip.judul}</div>
-                        <div className="cell-sub mono">{arsip.nomor_arsip}</div>
-                      </td>
-                      <td>
-                        <span className="badge badge-muted">{arsip.kode}</span>
-                      </td>
-                      <td>
-                        <div className="user-cell">
-                          <span className="avatar avatar-xs">{inisial(arsip.pembuat)}</span>
-                          <div>
-                            <div className="cell-title small">{arsip.pembuat}</div>
-                            <div className="cell-sub">{formatTanggal(arsip.created_at ?? arsip.tanggal_arsip)}</div>
-                          </div>
-                        </div>
-                      </td>
-                      <td>
-                        <StatusBadge status={arsip.status_retensi} />
-                        <div className="cell-sub">{formatTanggal(arsip.akhir_retensi)}</div>
-                      </td>
-                      <td onClick={(event) => event.stopPropagation()}>
-                        <details className="row-menu">
-                          <summary aria-label={`Aksi untuk ${arsip.nomor_arsip}`}>
-                            <Icon name="dots" size={18} />
+          {!canManage ? (
+            <div className="form-note" style={{ marginBottom: 14 }}>
+              Anda masuk sebagai Pimpinan. Folder dan arsip dapat dilihat serta diunduh, tetapi perubahan data hanya untuk
+              Admin dan Operator.
+            </div>
+          ) : null}
+
+          <div className="folder-grid">
+            {data.folders.map((folder) => {
+              const count = jumlahArsipPerFolder.get(folder.id) ?? 0;
+              return (
+                <div
+                  key={folder.id}
+                  className="folder-card"
+                  onClick={() => bukaFolder(folder.id)}
+                  role="button"
+                  tabIndex={0}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" || e.key === " ") bukaFolder(folder.id);
+                  }}
+                >
+                  <div className="folder-card-head">
+                    <div className="folder-card-icon">
+                      <Icon name="folder" size={24} />
+                    </div>
+                    {canManage ? (
+                      <div className="row-menu" onClick={(e) => e.stopPropagation()}>
+                        <details>
+                          <summary aria-label={`Menu folder ${folder.nama}`}>
+                            <Icon name="dots" size={16} />
                           </summary>
                           <div className="row-menu-panel">
                             <button
                               type="button"
-                              onClick={(event) => {
-                                event.currentTarget.closest("details")?.removeAttribute("open");
-                                setDetailId(arsip.id);
+                              onClick={(e) => {
+                                e.currentTarget.closest("details")?.removeAttribute("open");
+                                bukaFolder(folder.id);
                               }}
                             >
-                              <Icon name="file" size={15} /> Lihat detail
+                              <Icon name="folder" size={14} /> Buka folder
                             </button>
                             <button
                               type="button"
-                              onClick={(event) => {
-                                event.currentTarget.closest("details")?.removeAttribute("open");
-                                unduh(arsip);
+                              onClick={(e) => {
+                                e.currentTarget.closest("details")?.removeAttribute("open");
+                                bukaUbahFolder(folder);
                               }}
                             >
-                              <Icon name="download" size={15} /> Unduh
+                              <Icon name="edit" size={14} /> Ubah nama
                             </button>
-                            {canManage ? (
-                              <button
-                                type="button"
-                                onClick={(event) => {
-                                  event.currentTarget.closest("details")?.removeAttribute("open");
-                                  bukaUbah(arsip);
-                                }}
-                              >
-                                <Icon name="edit" size={15} /> Ubah
-                              </button>
-                            ) : null}
-                            {canManage ? (
-                              <button
-                                type="button"
-                                className="danger"
-                                onClick={(event) => {
-                                  event.currentTarget.closest("details")?.removeAttribute("open");
-                                  setHapus(arsip);
-                                }}
-                              >
-                                <Icon name="trash" size={15} /> Hapus
-                              </button>
-                            ) : null}
+                            <button
+                              type="button"
+                              className="danger"
+                              onClick={(e) => {
+                                e.currentTarget.closest("details")?.removeAttribute("open");
+                                setHapusFolder(folder);
+                              }}
+                            >
+                              <Icon name="trash" size={14} /> Hapus
+                            </button>
                           </div>
                         </details>
-                      </td>
-                    </tr>
-                  ))}
-              {ready && paged.length === 0 ? (
-                <tr>
-                  <td colSpan={5}>
-                    <div className="empty">Tidak ada arsip yang cocok dengan filter.</div>
-                  </td>
-                </tr>
-              ) : null}
-            </tbody>
-          </table>
-        </div>
+                      </div>
+                    ) : null}
+                  </div>
 
-        <div className="table-foot">
-          <span>
-            Menampilkan {awal}-{akhir} dari {filtered.length} arsip
-          </span>
-          <div className="pager">
-            <button
-              type="button"
-              className="btn btn-ghost btn-sm"
-              disabled={halaman <= 1}
-              onClick={() => setPage((value) => Math.max(1, value - 1))}
-            >
-              Sebelumnya
-            </button>
-            <span className="chip">
-              Halaman <strong>{halaman}</strong> / {totalPages}
-            </span>
-            <button
-              type="button"
-              className="btn btn-ghost btn-sm"
-              disabled={halaman >= totalPages}
-              onClick={() => setPage((value) => Math.min(totalPages, value + 1))}
-            >
-              Berikutnya
-            </button>
+                  <div className="folder-card-body">
+                    <div className="folder-card-title">{folder.nama}</div>
+                    <p className="folder-card-desc">{folder.keterangan || "Tidak ada keterangan."}</p>
+                  </div>
+
+                  <div className="folder-card-foot">
+                    <span className="badge badge-accent">
+                      {count} {count === 1 ? "arsip" : "arsip"}
+                    </span>
+                    <span>{formatTanggal(folder.created_at)}</span>
+                  </div>
+                </div>
+              );
+            })}
           </div>
         </div>
-      </div>
+      ) : (
+        // ================= TAMPILAN 2: DALAM FOLDER ATAU SEMUA ARSIP =================
+        <div className="card">
+          <div className="folder-breadcrumb">
+            <button type="button" className="folder-breadcrumb-btn" onClick={kembaliKeSemuaFolder}>
+              <Icon name="chevron" size={14} style={{ transform: "rotate(180deg)" }} /> Folder Arsip
+            </button>
+            <span>/</span>
+            <strong>{folderAktif ? folderAktif.nama : "Semua Arsip"}</strong>
+          </div>
 
+          <div className="section-head">
+            <div>
+              <h2 className="h2">{folderAktif ? folderAktif.nama : "Semua Arsip Digital"}</h2>
+              <p className="sub">
+                {folderAktif
+                  ? folderAktif.keterangan || `Daftar arsip yang tersimpan dalam folder ${folderAktif.nama}.`
+                  : "Daftar seluruh arsip yang ada di semua folder."}
+              </p>
+            </div>
+            <div className="actions-row">
+              {aktifFilter ? (
+                <button type="button" className="btn btn-ghost btn-sm" onClick={resetFilter}>
+                  Reset filter
+                </button>
+              ) : null}
+              {folderAktif && canManage ? (
+                <button
+                  type="button"
+                  className="btn btn-ghost btn-sm"
+                  onClick={() => bukaUbahFolder(folderAktif)}
+                >
+                  <Icon name="edit" size={15} /> Ubah Folder
+                </button>
+              ) : null}
+              <button
+                type="button"
+                className="btn"
+                onClick={bukaTambah}
+                disabled={!canManage || data.kodeArsip.length === 0}
+                title={
+                  !canManage
+                    ? "Pimpinan hanya dapat melihat"
+                    : data.kodeArsip.length === 0
+                      ? "Tambahkan kode arsip dahulu"
+                      : ""
+                }
+              >
+                <Icon name="plus" size={16} /> Tambah Arsip
+              </button>
+            </div>
+          </div>
+
+          <div className="toolbar">
+            <input
+              className="input input-search"
+              placeholder="Cari nomor, judul, kode, atau pembuat..."
+              value={cari}
+              onChange={(event) => {
+                setCari(event.target.value);
+                setPage(1);
+              }}
+            />
+            <select
+              className="select"
+              value={tahun}
+              onChange={(event) => {
+                setTahun(event.target.value);
+                setPage(1);
+              }}
+              aria-label="Filter tahun arsip"
+            >
+              <option value="">Semua tahun</option>
+              {daftarTahun.map((item) => (
+                <option key={item} value={item}>
+                  {item}
+                </option>
+              ))}
+            </select>
+            <select
+              className="select"
+              value={bulan}
+              onChange={(event) => {
+                setBulan(event.target.value);
+                setPage(1);
+              }}
+              aria-label="Filter bulan arsip"
+            >
+              <option value="">Semua bulan</option>
+              {BULAN.map(([val, label]) => (
+                <option key={val} value={val}>
+                  {label}
+                </option>
+              ))}
+            </select>
+            <select
+              className="select"
+              value={status}
+              onChange={(event) => {
+                setStatus(event.target.value);
+                setPage(1);
+              }}
+              aria-label="Filter status retensi"
+            >
+              <option value="">Semua status</option>
+              <option value="Aktif">Aktif</option>
+              <option value="Inaktif">Inaktif</option>
+              <option value="Permanen">Permanen</option>
+            </select>
+            <select
+              className="select"
+              value={kode}
+              onChange={(event) => {
+                setKode(event.target.value);
+                setPage(1);
+              }}
+              aria-label="Filter kode arsip"
+            >
+              <option value="">Semua kode</option>
+              {data.kodeArsip.map((item) => (
+                <option key={item.id} value={item.kode}>
+                  {item.kode} - {item.nama}
+                </option>
+              ))}
+            </select>
+            <select
+              className="select"
+              value={pengguna}
+              onChange={(event) => {
+                setPengguna(event.target.value);
+                setPage(1);
+              }}
+              aria-label="Filter pengguna penambah"
+            >
+              <option value="">Semua pengguna</option>
+              {daftarPengguna.map((item) => (
+                <option key={item} value={item}>
+                  {item}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div className="chips">
+            {tahun ? (
+              <span className="chip">
+                Tahun: <strong>{tahun}</strong>
+                <button type="button" onClick={() => setTahun("")} aria-label="Hapus filter tahun">
+                  &times;
+                </button>
+              </span>
+            ) : null}
+            {bulan ? (
+              <span className="chip">
+                Bulan: <strong>{BULAN.find(([value]) => value === bulan)?.[1]}</strong>
+                <button type="button" onClick={() => setBulan("")} aria-label="Hapus filter bulan">
+                  &times;
+                </button>
+              </span>
+            ) : null}
+            {modeTanggal ? (
+              <span className="chip">
+                {modeTanggal === "satu" ? "Tanggal" : "Rentang"}:{" "}
+                <strong>
+                  {tanggal1 || "-"}
+                  {modeTanggal === "rentang" ? ` s.d. ${tanggal2 || "-"}` : ""}
+                </strong>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setModeTanggal("");
+                    setTanggal1("");
+                    setTanggal2("");
+                  }}
+                  aria-label="Hapus filter tanggal"
+                >
+                  &times;
+                </button>
+              </span>
+            ) : null}
+            {status ? (
+              <span className="chip">
+                Status: <strong>{status}</strong>
+                <button type="button" onClick={() => setStatus("")} aria-label="Hapus filter status">
+                  &times;
+                </button>
+              </span>
+            ) : null}
+            {kode ? (
+              <span className="chip">
+                Kode: <strong>{kode}</strong>
+                <button type="button" onClick={() => setKode("")} aria-label="Hapus filter kode">
+                  &times;
+                </button>
+              </span>
+            ) : null}
+            {pengguna ? (
+              <span className="chip">
+                Pengguna: <strong>{pengguna}</strong>
+                <button type="button" onClick={() => setPengguna("")} aria-label="Hapus filter pengguna">
+                  &times;
+                </button>
+              </span>
+            ) : null}
+            {cari ? (
+              <span className="chip">
+                Pencarian: <strong>{cari}</strong>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setCari("");
+                    setPage(1);
+                  }}
+                  aria-label="Hapus pencarian"
+                >
+                  &times;
+                </button>
+              </span>
+            ) : null}
+            <span className="chip">
+              Total: <strong>{filtered.length} arsip</strong>
+            </span>
+          </div>
+
+          <div className="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Judul</th>
+                  <th>Kode</th>
+                  {!folderAktif ? <th>Folder</th> : null}
+                  <th>Ditambahkan Oleh</th>
+                  <th>Disimpan Sampai</th>
+                  <th style={{ width: 56 }}>Aksi</th>
+                </tr>
+              </thead>
+              <tbody>
+                {!ready
+                  ? Array.from({ length: 5 }).map((_, index) => (
+                      <tr key={`skeleton-${index}`}>
+                        <td>
+                          <div className="skeleton skeleton-text" style={{ width: "78%" }} />
+                          <div className="skeleton skeleton-text" style={{ width: "38%", marginBottom: 0 }} />
+                        </td>
+                        <td>
+                          <div className="skeleton skeleton-text" style={{ width: 56, marginBottom: 0 }} />
+                        </td>
+                        {!folderAktif ? (
+                          <td>
+                            <div className="skeleton skeleton-text" style={{ width: 90, marginBottom: 0 }} />
+                          </td>
+                        ) : null}
+                        <td>
+                          <div className="skeleton skeleton-text" style={{ width: 120, marginBottom: 0 }} />
+                        </td>
+                        <td>
+                          <div className="skeleton skeleton-text" style={{ width: 90, marginBottom: 0 }} />
+                        </td>
+                        <td>
+                          <div className="skeleton skeleton-circle" />
+                        </td>
+                      </tr>
+                    ))
+                  : paged.map((arsip) => {
+                      const fItem = data.folders.find((f) => f.id === arsip.folder_id);
+                      return (
+                        <tr key={arsip.id} className="row-click" onClick={() => setDetailId(arsip.id)}>
+                          <td>
+                            <div className="cell-title">{arsip.judul}</div>
+                            <div className="cell-sub mono">{arsip.nomor_arsip}</div>
+                          </td>
+                          <td>
+                            <span className="badge badge-muted">{arsip.kode}</span>
+                          </td>
+                          {!folderAktif ? (
+                            <td>
+                              <span className="badge badge-accent">{fItem?.nama ?? "-"}</span>
+                            </td>
+                          ) : null}
+                          <td>
+                            <div className="user-cell">
+                              <span className="avatar avatar-xs">{inisial(arsip.pembuat)}</span>
+                              <div>
+                                <div className="cell-title small">{arsip.pembuat}</div>
+                                <div className="cell-sub">{formatTanggal(arsip.created_at ?? arsip.tanggal_arsip)}</div>
+                              </div>
+                            </div>
+                          </td>
+                          <td>
+                            <StatusBadge status={arsip.status_retensi} />
+                            <div className="cell-sub">{formatTanggal(arsip.akhir_retensi)}</div>
+                          </td>
+                          <td onClick={(event) => event.stopPropagation()}>
+                            <details className="row-menu">
+                              <summary aria-label={`Aksi untuk ${arsip.nomor_arsip}`}>
+                                <Icon name="dots" size={18} />
+                              </summary>
+                              <div className="row-menu-panel">
+                                <button
+                                  type="button"
+                                  onClick={(event) => {
+                                    event.currentTarget.closest("details")?.removeAttribute("open");
+                                    setDetailId(arsip.id);
+                                  }}
+                                >
+                                  <Icon name="file" size={15} /> Lihat detail
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={(event) => {
+                                    event.currentTarget.closest("details")?.removeAttribute("open");
+                                    unduh(arsip);
+                                  }}
+                                >
+                                  <Icon name="download" size={15} /> Unduh
+                                </button>
+                                {canManage ? (
+                                  <button
+                                    type="button"
+                                    onClick={(event) => {
+                                      event.currentTarget.closest("details")?.removeAttribute("open");
+                                      bukaUbah(arsip);
+                                    }}
+                                  >
+                                    <Icon name="edit" size={15} /> Ubah
+                                  </button>
+                                ) : null}
+                                {canManage ? (
+                                  <button
+                                    type="button"
+                                    className="danger"
+                                    onClick={(event) => {
+                                      event.currentTarget.closest("details")?.removeAttribute("open");
+                                      setHapus(arsip);
+                                    }}
+                                  >
+                                    <Icon name="trash" size={15} /> Hapus
+                                  </button>
+                                ) : null}
+                              </div>
+                            </details>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                {ready && paged.length === 0 ? (
+                  <tr>
+                    <td colSpan={folderAktif ? 5 : 6}>
+                      <div className="empty" style={{ padding: "32px 16px" }}>
+                        <p style={{ margin: "0 0 10px 0" }}>
+                          {folderAktif
+                            ? "Folder ini belum memiliki arsip."
+                            : "Tidak ada arsip yang cocok dengan filter."}
+                        </p>
+                        {folderAktif && canManage ? (
+                          <button type="button" className="btn btn-sm" onClick={bukaTambah}>
+                            <Icon name="plus" size={14} /> Tambah Arsip Sekarang
+                          </button>
+                        ) : null}
+                      </div>
+                    </td>
+                  </tr>
+                ) : null}
+              </tbody>
+            </table>
+          </div>
+
+          <div className="table-foot">
+            <span>
+              Menampilkan {awal}-{akhir} dari {filtered.length} arsip
+            </span>
+            <div className="pager">
+              <button
+                type="button"
+                className="btn btn-ghost btn-sm"
+                disabled={halaman <= 1}
+                onClick={() => setPage((value) => Math.max(1, value - 1))}
+              >
+                Sebelumnya
+              </button>
+              <span className="chip">
+                Halaman <strong>{halaman}</strong> / {totalPages}
+              </span>
+              <button
+                type="button"
+                className="btn btn-ghost btn-sm"
+                disabled={halaman >= totalPages}
+                onClick={() => setPage((value) => Math.min(totalPages, value + 1))}
+              >
+                Berikutnya
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* DRAWER DETAIL ARSIP */}
       <Drawer
         open={Boolean(detail)}
         onClose={() => setDetailId(null)}
@@ -708,6 +944,10 @@ export default function ArsipPage() {
             </div>
 
             <div className="meta-grid">
+              <div className="meta-item">
+                <span>Folder</span>
+                <strong>{detailFolder?.nama ?? "-"}</strong>
+              </div>
               <div className="meta-item">
                 <span>Kode arsip</span>
                 <strong className="mono">{detail.kode}</strong>
@@ -776,6 +1016,92 @@ export default function ArsipPage() {
         ) : null}
       </Drawer>
 
+      {/* MODAL BUAT / UBAH FOLDER */}
+      <Modal
+        open={folderModalOpen}
+        onClose={() => setFolderModalOpen(false)}
+        title={editingFolder ? "Ubah Folder" : "Buat Folder Baru"}
+        subtitle="Folder memudahkan pengelompokan arsip berdasarkan unit kerja atau kategori dokumen."
+        footer={
+          <>
+            <button type="button" className="btn btn-ghost" onClick={() => setFolderModalOpen(false)}>
+              Batal
+            </button>
+            <button type="submit" form="form-folder" className="btn">
+              {editingFolder ? "Simpan Perubahan" : "Buat Folder"}
+            </button>
+          </>
+        }
+      >
+        <form id="form-folder" onSubmit={simpanFolder}>
+          {folderFormError ? <div className="error-box">{folderFormError}</div> : null}
+          <div className="form-grid">
+            <div className="field field-full">
+              <label htmlFor="nama-folder">Nama folder</label>
+              <input
+                id="nama-folder"
+                className="input"
+                value={folderForm.nama}
+                onChange={(e) => setFolderForm({ ...folderForm, nama: e.target.value })}
+                placeholder="Contoh: Keuangan & Anggaran"
+                required
+                autoFocus
+              />
+            </div>
+            <div className="field field-full">
+              <label htmlFor="keterangan-folder">Keterangan folder</label>
+              <textarea
+                id="keterangan-folder"
+                className="input"
+                value={folderForm.keterangan}
+                onChange={(e) => setFolderForm({ ...folderForm, keterangan: e.target.value })}
+                placeholder="Deskripsi singkat isi atau tujuan folder ini"
+                rows={3}
+              />
+            </div>
+          </div>
+        </form>
+      </Modal>
+
+      {/* MODAL HAPUS FOLDER */}
+      <Modal
+        open={Boolean(hapusFolder)}
+        onClose={() => setHapusFolder(null)}
+        title="Hapus Folder"
+        subtitle="Folder yang masih berisi arsip tidak dapat dihapus."
+        width={460}
+        footer={
+          <>
+            <button type="button" className="btn btn-ghost" onClick={() => setHapusFolder(null)}>
+              Batal
+            </button>
+            <button
+              type="button"
+              className="btn btn-danger"
+              disabled={Boolean(hapusFolder && (jumlahArsipPerFolder.get(hapusFolder.id) ?? 0) > 0)}
+              onClick={konfirmasiHapusFolder}
+            >
+              Hapus Folder
+            </button>
+          </>
+        }
+      >
+        {hapusFolder ? (
+          <div>
+            <p className="sub" style={{ margin: "0 0 10px 0" }}>
+              Apakah Anda yakin ingin menghapus folder <strong>{hapusFolder.nama}</strong>?
+            </p>
+            {(jumlahArsipPerFolder.get(hapusFolder.id) ?? 0) > 0 ? (
+              <div className="error-box" style={{ marginTop: 10 }}>
+                Folder masih berisi {jumlahArsipPerFolder.get(hapusFolder.id)} arsip. Pindahkan atau hapus arsip di
+                dalamnya terlebih dahulu sebelum menghapus folder.
+              </div>
+            ) : null}
+          </div>
+        ) : null}
+      </Modal>
+
+      {/* MODAL TAMBAH / UBAH ARSIP */}
       <Modal
         open={formOpen}
         onClose={() => setFormOpen(false)}
@@ -795,6 +1121,23 @@ export default function ArsipPage() {
         <form id="form-arsip" onSubmit={simpan}>
           {formError ? <div className="error-box">{formError}</div> : null}
           <div className="form-grid">
+            <div className="field field-full">
+              <label htmlFor="folder-arsip">Folder arsip</label>
+              <select
+                id="folder-arsip"
+                className="select"
+                value={form.folder_id}
+                onChange={(event) => setForm({ ...form, folder_id: event.target.value })}
+                required
+              >
+                <option value="">Pilih folder</option>
+                {data.folders.map((f) => (
+                  <option key={f.id} value={f.id}>
+                    {f.nama}
+                  </option>
+                ))}
+              </select>
+            </div>
             <div className="field">
               <label htmlFor="nomor-arsip">Nomor arsip</label>
               <input
@@ -897,6 +1240,7 @@ export default function ArsipPage() {
         </form>
       </Modal>
 
+      {/* MODAL HAPUS ARSIP */}
       <Modal
         open={Boolean(hapus)}
         onClose={() => setHapus(null)}

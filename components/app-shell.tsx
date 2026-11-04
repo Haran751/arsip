@@ -7,10 +7,10 @@ import Icon from "./icon";
 import CommandPalette from "./command-palette";
 import { useDemo } from "@/lib/demo-store";
 import { navItems, mobileNavItems } from "@/lib/nav";
-import { formatWaktu, inisial } from "@/lib/demo-data";
+import { inisial } from "@/lib/demo-data";
 
 export default function AppShell({ children }: { children: React.ReactNode }) {
-  const { currentUser: user, data, stats, dueArsip } = useDemo();
+  const { currentUser: user, stats, dueArsip } = useDemo();
   const pathname = usePathname();
   const [paletteOpen, setPaletteOpen] = useState(false);
   const [notifOpen, setNotifOpen] = useState(false);
@@ -40,21 +40,8 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
         tone: "info",
       });
     }
-    data.logs
-      .slice()
-      .sort((a, b) => b.waktu.localeCompare(a.waktu))
-      .slice(0, 2)
-      .forEach((log) => {
-        list.push({
-          id: log.id,
-          title: log.aksi,
-          desc: `${log.user} - ${formatWaktu(log.waktu)}`,
-          href: "/log",
-          tone: "muted",
-        });
-      });
     return list;
-  }, [data.logs, dueArsip.length, stats.usulanDiajukan]);
+  }, [dueArsip.length, stats.usulanDiajukan]);
 
   useEffect(() => {
     const handler = (event: KeyboardEvent) => {
@@ -177,9 +164,6 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
                     ))}
                     {notifications.length === 0 ? <div className="empty">Tidak ada notifikasi baru.</div> : null}
                   </div>
-                  <Link href="/log" className="popover-foot" onClick={() => setNotifOpen(false)}>
-                    Lihat semua aktivitas <Icon name="chevron" size={14} />
-                  </Link>
                 </div>
               ) : null}
             </div>

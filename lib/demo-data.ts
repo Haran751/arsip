@@ -22,11 +22,20 @@ export type KodeArsip = {
   jumlah: number;
 };
 
+export type Folder = {
+  id: string;
+  nama: string;
+  keterangan?: string;
+  pembuat: string;
+  created_at: string;
+};
+
 export type Arsip = {
   id: string;
   nomor_arsip: string;
   judul: string;
   kode: string;
+  folder_id: string;
   tanggal_arsip: string;
   status_retensi: StatusRetensi;
   akhir_retensi: string;
@@ -148,12 +157,37 @@ export const kodeArsipList: KodeArsip[] = [
   },
 ];
 
+export const folderList: Folder[] = [
+  {
+    id: "fold-001",
+    nama: "Keuangan",
+    keterangan: "Laporan dan dokumen anggaran.",
+    pembuat: "Rahmat Hidayat",
+    created_at: "2026-10-01T08:00:00+07:00",
+  },
+  {
+    id: "fold-002",
+    nama: "Kepegawaian & Hukum",
+    keterangan: "Berkas pegawai dan regulasi.",
+    pembuat: "Rahmat Hidayat",
+    created_at: "2026-10-02T08:00:00+07:00",
+  },
+  {
+    id: "fold-003",
+    nama: "Operasional & Program",
+    keterangan: "Dokumen kegiatan dan evaluasi.",
+    pembuat: "Sinta Maharani",
+    created_at: "2026-10-03T08:00:00+07:00",
+  },
+];
+
 export const arsipList: Arsip[] = [
   {
     id: "ars-001",
     nomor_arsip: "ARS-2026-001",
     judul: "Laporan Realisasi Anggaran 2025",
     kode: "KEU-01",
+    folder_id: "fold-001",
     tanggal_arsip: "2025-01-20",
     status_retensi: "Aktif",
     akhir_retensi: "2035-01-20",
@@ -164,6 +198,7 @@ export const arsipList: Arsip[] = [
     nomor_arsip: "ARS-2025-014",
     judul: "Daftar Hadir Rapat Koordinasi Triwulan I",
     kode: "OPR-01",
+    folder_id: "fold-003",
     tanggal_arsip: "2025-03-11",
     status_retensi: "Inaktif",
     akhir_retensi: "2029-03-11",
@@ -174,6 +209,7 @@ export const arsipList: Arsip[] = [
     nomor_arsip: "ARS-2025-009",
     judul: "SK Penetapan Pegawai Kontrak",
     kode: "KEP-01",
+    folder_id: "fold-002",
     tanggal_arsip: "2024-11-02",
     status_retensi: "Inaktif",
     akhir_retensi: "2031-11-02",
@@ -184,6 +220,7 @@ export const arsipList: Arsip[] = [
     nomor_arsip: "ARS-2024-003",
     judul: "Peraturan Internal Tata Kelola Organisasi",
     kode: "HKM-01",
+    folder_id: "fold-002",
     tanggal_arsip: "2020-06-01",
     status_retensi: "Permanen",
     akhir_retensi: "2030-06-01",
@@ -194,6 +231,7 @@ export const arsipList: Arsip[] = [
     nomor_arsip: "ARS-2025-021",
     judul: "Nota Dinas Perjalanan Dinas Luar Kota",
     kode: "OPR-01",
+    folder_id: "fold-003",
     tanggal_arsip: "2025-07-14",
     status_retensi: "Aktif",
     akhir_retensi: "2029-07-14",
@@ -204,6 +242,7 @@ export const arsipList: Arsip[] = [
     nomor_arsip: "ARS-2024-018",
     judul: "Laporan Evaluasi Program Kerja 2023",
     kode: "PRO-01",
+    folder_id: "fold-003",
     tanggal_arsip: "2023-12-05",
     status_retensi: "Inaktif",
     akhir_retensi: "2033-12-05",
@@ -214,6 +253,7 @@ export const arsipList: Arsip[] = [
     nomor_arsip: "ARS-2025-030",
     judul: "Berita Acara Serah Terima Barang",
     kode: "KEU-01",
+    folder_id: "fold-001",
     tanggal_arsip: "2025-09-01",
     status_retensi: "Aktif",
     akhir_retensi: "2035-09-01",
@@ -224,6 +264,7 @@ export const arsipList: Arsip[] = [
     nomor_arsip: "ARS-2023-006",
     judul: "Dokumen Pengadaan Barang dan Jasa",
     kode: "KEU-01",
+    folder_id: "fold-001",
     tanggal_arsip: "2022-04-18",
     status_retensi: "Permanen",
     akhir_retensi: "2032-04-18",

@@ -5,9 +5,18 @@ import Drawer from "@/components/drawer";
 import Icon from "@/components/icon";
 import Modal from "@/components/modal";
 import StatusBadge from "@/components/status-badge";
-import { formatTanggal, formatWaktu, inisial, type Arsip, type Folder } from "@/lib/demo-data";
-import { useDemo, type ArsipInput, type FolderInput } from "@/lib/demo-store";
-import { downloadDokumenDemo, formatBytes } from "@/lib/export";
+import {
+  formatTanggal,
+  formatWaktu,
+  inisial,
+  type Arsip,
+  type ArsipInput,
+  type Folder,
+  type FolderInput,
+} from "@/lib/types";
+import { useData } from "@/lib/data-store";
+import { formatBytes } from "@/lib/export";
+import { ambilUrlUnduhAksi } from "@/lib/actions/storage";
 import { hitungRetensi } from "@/lib/retensi";
 
 const PAGE_SIZE = 8;
@@ -65,7 +74,7 @@ export default function ArsipPage() {
     nextNomorArsip,
     catatLog,
     toast,
-  } = useDemo();
+  } = useData();
 
   // Mode navigasi: folder-first
   const [folderAktifId, setFolderAktifId] = useState<string | null>(null);
@@ -193,13 +202,13 @@ export default function ArsipPage() {
     setFolderModalOpen(true);
   };
 
-  const simpanFolder = (event: React.FormEvent<HTMLFormElement>) => {
+  const simpanFolder = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     const input: FolderInput = {
       nama: folderForm.nama.trim(),
       keterangan: folderForm.keterangan.trim() || undefined,
     };
-    const hasil = saveFolder(input, editingFolder?.id);
+    const hasil = await saveFolder(input, editingFolder?.id);
     if (!hasil.ok) {
       setFolderFormError(hasil.message ?? "Gagal menyimpan folder.");
       return;
@@ -208,9 +217,9 @@ export default function ArsipPage() {
     setFolderModalOpen(false);
   };
 
-  const konfirmasiHapusFolder = () => {
+  const konfirmasiHapusFolder = async () => {
     if (!hapusFolder) return;
-    const hasil = deleteFolder(hapusFolder.id);
+    const hasil = await deleteFolder(hapusFolder.id);
     toast(hasil.message ?? (hasil.ok ? "Folder dihapus." : "Gagal menghapus folder."), hasil.ok ? "success" : "error");
     if (hasil.ok) {
       if (folderAktifId === hapusFolder.id) {
@@ -235,6 +244,11 @@ export default function ArsipPage() {
   // --- AKSI ARSIP ---
   const bukaTambah = () => {
     if (!canManage || data.kodeArsip.length === 0) return;
+    if (data.folders.length === 0) {
+      toast("Buat folder terlebih dahulu sebelum menambahkan arsip.", "info");
+      bukaTambahFolder();
+      return;
+    }
     const tanggal = today();
     const targetFolderId = folderAktifId ?? data.folders[0]?.id ?? "";
     setEditing(null);
@@ -305,7 +319,7 @@ export default function ArsipPage() {
     setFormOpen(true);
   };
 
-  const simpan = (event: React.FormEvent<HTMLFormElement>) => {
+  const simpan = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     const input: ArsipInput = {
       nomor_arsip: form.nomor_arsip,
@@ -318,7 +332,7 @@ export default function ArsipPage() {
       file_size: form.file_size,
       file_type: form.file_type || undefined,
     };
-    const hasil = saveArsip(input, editing?.id);
+    const hasil = await saveArsip(input, editing?.id);
     if (!hasil.ok) {
       setFormError(hasil.message ?? "Gagal menyimpan arsip.");
       return;
@@ -327,26 +341,24 @@ export default function ArsipPage() {
     setFormOpen(false);
   };
 
-  const unduh = (arsip: Arsip) => {
-    const fNama = data.folders.find((f) => f.id === arsip.folder_id)?.nama ?? "-";
-    downloadDokumenDemo(arsip.nomor_arsip, arsip.judul, [
-      `Folder        : ${fNama}`,
-      `Kode arsip    : ${arsip.kode}`,
-      `Tanggal arsip : ${formatTanggal(arsip.tanggal_arsip)}`,
-      `Status        : ${arsip.status_retensi}`,
-      `Akhir retensi : ${formatTanggal(arsip.akhir_retensi)}`,
-      `Pembuat       : ${arsip.pembuat}`,
-      `Berkas        : ${arsip.file_name ?? "belum ada berkas"}`,
-      `Ukuran        : ${formatBytes(arsip.file_size)}`,
-      `Keterangan    : ${arsip.keterangan ?? "-"}`,
-    ]);
-    catatLog("Mengunduh arsip", `${arsip.nomor_arsip} - ${arsip.judul}`, "ekspor");
-    toast("Berkas contoh diunduh.");
+  const unduh = async (arsip: Arsip) => {
+    if (!arsip.file_path) {
+      toast("Berkas untuk arsip ini belum diunggah.", "info");
+      return;
+    }
+    const hasil = await ambilUrlUnduhAksi(arsip.file_path);
+    if (!hasil.ok || !hasil.url) {
+      toast(hasil.message ?? "Gagal menyiapkan unduhan.", "error");
+      return;
+    }
+    window.open(hasil.url, "_blank", "noopener,noreferrer");
+    await catatLog("Mengunduh arsip", `${arsip.nomor_arsip} - ${arsip.judul}`, "ekspor");
+    toast("Unduhan disiapkan.");
   };
 
-  const konfirmasiHapus = () => {
+  const konfirmasiHapus = async () => {
     if (!hapus) return;
-    const hasil = deleteArsip(hapus.id);
+    const hasil = await deleteArsip(hapus.id);
     toast(hasil.message ?? (hasil.ok ? "Arsip dihapus." : "Gagal menghapus arsip."), hasil.ok ? "success" : "error");
     if (hasil.ok) {
       setHapus(null);
@@ -429,80 +441,91 @@ export default function ArsipPage() {
             </div>
           ) : null}
 
-          <div className="folder-grid">
-            {data.folders.map((folder) => {
-              const count = jumlahArsipPerFolder.get(folder.id) ?? 0;
-              return (
-                <div
-                  key={folder.id}
-                  className="folder-card"
-                  onClick={() => bukaFolder(folder.id)}
-                  role="button"
-                  tabIndex={0}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter" || e.key === " ") bukaFolder(folder.id);
-                  }}
-                >
-                  <div className="folder-card-head">
-                    <div className="folder-card-icon">
-                      <Icon name="folder" size={24} />
-                    </div>
-                    {canManage ? (
-                      <div className="row-menu" onClick={(e) => e.stopPropagation()}>
-                        <details>
-                          <summary aria-label={`Menu folder ${folder.nama}`}>
-                            <Icon name="dots" size={16} />
-                          </summary>
-                          <div className="row-menu-panel">
-                            <button
-                              type="button"
-                              onClick={(e) => {
-                                e.currentTarget.closest("details")?.removeAttribute("open");
-                                bukaFolder(folder.id);
-                              }}
-                            >
-                              <Icon name="folder" size={14} /> Buka folder
-                            </button>
-                            <button
-                              type="button"
-                              onClick={(e) => {
-                                e.currentTarget.closest("details")?.removeAttribute("open");
-                                bukaUbahFolder(folder);
-                              }}
-                            >
-                              <Icon name="edit" size={14} /> Ubah nama
-                            </button>
-                            <button
-                              type="button"
-                              className="danger"
-                              onClick={(e) => {
-                                e.currentTarget.closest("details")?.removeAttribute("open");
-                                setHapusFolder(folder);
-                              }}
-                            >
-                              <Icon name="trash" size={14} /> Hapus
-                            </button>
-                          </div>
-                        </details>
+          {data.folders.length === 0 ? (
+            <div className="empty" style={{ padding: "48px 16px", marginTop: 16 }}>
+              <p style={{ margin: "0 0 12px 0", fontSize: 14 }}>Belum ada folder arsip.</p>
+              {canManage ? (
+                <button type="button" className="btn" onClick={bukaTambahFolder}>
+                  <Icon name="plus" size={16} /> Buat Folder Pertama
+                </button>
+              ) : null}
+            </div>
+          ) : (
+            <div className="folder-grid">
+              {data.folders.map((folder) => {
+                const count = jumlahArsipPerFolder.get(folder.id) ?? 0;
+                return (
+                  <div
+                    key={folder.id}
+                    className="folder-card"
+                    onClick={() => bukaFolder(folder.id)}
+                    role="button"
+                    tabIndex={0}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" || e.key === " ") bukaFolder(folder.id);
+                    }}
+                  >
+                    <div className="folder-card-head">
+                      <div className="folder-card-icon">
+                        <Icon name="folder" size={24} />
                       </div>
-                    ) : null}
-                  </div>
+                      {canManage ? (
+                        <div className="row-menu" onClick={(e) => e.stopPropagation()}>
+                          <details>
+                            <summary aria-label={`Menu folder ${folder.nama}`}>
+                              <Icon name="dots" size={16} />
+                            </summary>
+                            <div className="row-menu-panel">
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.currentTarget.closest("details")?.removeAttribute("open");
+                                  bukaFolder(folder.id);
+                                }}
+                              >
+                                <Icon name="folder" size={14} /> Buka folder
+                              </button>
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.currentTarget.closest("details")?.removeAttribute("open");
+                                  bukaUbahFolder(folder);
+                                }}
+                              >
+                                <Icon name="edit" size={14} /> Ubah nama
+                              </button>
+                              <button
+                                type="button"
+                                className="danger"
+                                onClick={(e) => {
+                                  e.currentTarget.closest("details")?.removeAttribute("open");
+                                  setHapusFolder(folder);
+                                }}
+                              >
+                                <Icon name="trash" size={14} /> Hapus
+                              </button>
+                            </div>
+                          </details>
+                        </div>
+                      ) : null}
+                    </div>
 
-                  <div className="folder-card-body">
-                    <div className="folder-card-title">{folder.nama}</div>
-                    <p className="folder-card-desc">{folder.keterangan || "Tidak ada keterangan."}</p>
-                  </div>
+                    <div className="folder-card-body">
+                      <div className="folder-card-title">{folder.nama}</div>
+                      <p className="folder-card-desc">{folder.keterangan || "Tidak ada keterangan."}</p>
+                    </div>
 
-                  <div className="folder-card-foot">
-                    <span className="badge badge-accent">
-                      {count} {count === 1 ? "arsip" : "arsip"}
-                    </span>
-                    <span>{formatTanggal(folder.created_at)}</span>
+                    <div className="folder-card-foot">
+                      <span className="badge badge-accent">
+                        {count} {count === 1 ? "arsip" : "arsip"}
+                      </span>
+                      <span>{formatTanggal(folder.created_at)}</span>
+                    </div>
                   </div>
-                </div>
-              );
-            })}
-          </div>
+                );
+              })}
+            </div>
+          )}
         </div>
       ) : (
         // ================= TAMPILAN 2: DALAM FOLDER ATAU SEMUA ARSIP =================

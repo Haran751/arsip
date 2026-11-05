@@ -5,8 +5,8 @@ import { useMemo } from "react";
 import AnimatedNumber from "@/components/animated-number";
 import Icon from "@/components/icon";
 import StatusBadge from "@/components/status-badge";
-import { formatTanggal, formatWaktu } from "@/lib/demo-data";
-import { useDemo } from "@/lib/demo-store";
+import { formatTanggal, formatWaktu } from "@/lib/types";
+import { useData } from "@/lib/data-store";
 
 const jenisClass: Record<string, string> = {
   setuju: "warn",
@@ -15,7 +15,7 @@ const jenisClass: Record<string, string> = {
 };
 
 export default function BerandaPage() {
-  const { ready, data, stats, resetDemo } = useDemo();
+  const { ready, data, stats } = useData();
 
   const arsipTerbaru = useMemo(
     () => [...data.arsip].sort((a, b) => b.tanggal_arsip.localeCompare(a.tanggal_arsip)).slice(0, 5),
@@ -77,9 +77,6 @@ export default function BerandaPage() {
             <Link href="/arsip?baru=1" className="btn">
               <Icon name="plus" size={16} /> Tambah arsip
             </Link>
-            <button type="button" className="btn btn-ghost" onClick={resetDemo}>
-              Reset data contoh
-            </button>
           </div>
         </div>
         <div className="banner-stats">

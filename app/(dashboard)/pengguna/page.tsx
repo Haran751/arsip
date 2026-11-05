@@ -2,8 +2,8 @@
 
 import { useMemo, useState } from "react";
 import Modal from "@/components/modal";
-import { formatWaktu, inisial, type DemoUser, type Role } from "@/lib/demo-data";
-import { useDemo, type UserInput } from "@/lib/demo-store";
+import { formatWaktu, inisial, type AppUser, type Role, type UserInput } from "@/lib/types";
+import { useData } from "@/lib/data-store";
 
 const ROLES: Role[] = ["Admin", "Operator", "Pimpinan"];
 
@@ -16,13 +16,13 @@ type FormState = {
 };
 
 export default function PenggunaPage() {
-  const { data, stats, isAdmin, currentUser, saveUser, resetUserPassword, toast } = useDemo();
+  const { data, stats, isAdmin, currentUser, saveUser, resetUserPassword, toast } = useData();
   const [cari, setCari] = useState("");
   const [filterPeran, setFilterPeran] = useState("");
   const [filterStatus, setFilterStatus] = useState("");
   const [formOpen, setFormOpen] = useState(false);
-  const [editing, setEditing] = useState<DemoUser | null>(null);
-  const [resetTarget, setResetTarget] = useState<DemoUser | null>(null);
+  const [editing, setEditing] = useState<AppUser | null>(null);
+  const [resetTarget, setResetTarget] = useState<AppUser | null>(null);
   const [form, setForm] = useState<FormState>({
     nama: "",
     username: "",
@@ -49,7 +49,7 @@ export default function PenggunaPage() {
     setFormOpen(true);
   };
 
-  const bukaUbah = (user: DemoUser) => {
+  const bukaUbah = (user: AppUser) => {
     setEditing(user);
     setForm({ nama: user.nama, username: user.username, email: user.email, role: user.role, aktif: user.aktif });
     setFormError("");

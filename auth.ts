@@ -2,14 +2,13 @@ import NextAuth from "next-auth";
 import Credentials from "next-auth/providers/credentials";
 import { z } from "zod";
 import {
-  autentikasiLokal,
   cariPenggunaAuthByUsername,
   emailUntukUsername,
-  keDemoUserAuth,
+  keUserAplikasi,
   panggilAuth,
-  supabaseTerkonfigurasi,
   type SupabaseAuthUser,
 } from "@/lib/supabase-admin";
+import { sinkronPengguna } from "@/lib/user-sync";
 
 const loginSchema = z.object({
   username: z.string().min(1),
@@ -45,22 +44,6 @@ export const { handlers, auth, signIn, signOut, unstable_update } = NextAuth({
 
         const { username, password } = parsed.data;
 
-        // Mode lokal: dipakai saat Supabase belum dikonfigurasi.
-        if (!supabaseTerkonfigurasi()) {
-          const lokal = autentikasiLokal(username, password);
-          if (!lokal) return null;
-          const userLokal = keDemoUserAuth(lokal);
-          if (!userLokal || !userLokal.aktif) return null;
-          return {
-            id: userLokal.id,
-            name: userLokal.nama,
-            email: userLokal.email,
-            role: userLokal.role,
-            aktif: userLokal.aktif,
-            must_change_password: false,
-          };
-        }
-
         let email = emailUntukUsername(username);
         if (!username.includes("@")) {
           const dicari = await cariPenggunaAuthByUsername(username);
@@ -75,8 +58,13 @@ export const { handlers, auth, signIn, signOut, unstable_update } = NextAuth({
         const authUser = hasil?.user;
         if (!authUser) return null;
 
-        const user = keDemoUserAuth(authUser);
+        const user = keUserAplikasi(authUser);
         if (!user || !user.aktif) return null;
+
+        // Pastikan user Supabase Auth tersedia di tabel users untuk relasi foreign key.
+        await sinkronPengguna(user, Boolean(authUser.user_metadata?.must_change_password)).catch((error) => {
+          console.error("Gagal sinkronisasi user ke database:", error);
+        });
 
         return {
           id: user.id,

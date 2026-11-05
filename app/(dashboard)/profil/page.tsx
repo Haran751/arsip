@@ -3,11 +3,11 @@
 import Link from "next/link";
 import { useMemo, useState } from "react";
 import Modal from "@/components/modal";
-import { formatWaktu, inisial } from "@/lib/demo-data";
-import { useDemo } from "@/lib/demo-store";
+import { formatWaktu, inisial } from "@/lib/types";
+import { useData } from "@/lib/data-store";
 
 export default function ProfilPage() {
-  const { data, currentUser, updateProfile, toast } = useDemo();
+  const { data, currentUser, updateProfile, toast } = useData();
   const [editOpen, setEditOpen] = useState(false);
   const [form, setForm] = useState({ nama: currentUser.nama, email: currentUser.email });
   const [formError, setFormError] = useState("");

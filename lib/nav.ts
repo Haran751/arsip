@@ -14,7 +14,7 @@ export const navItems: NavItem[] = [
   { href: "/kode-arsip", label: "Kode Arsip", desc: "Master kode dan aturan retensi", icon: "folder" },
   { href: "/pemusnahan", label: "Pemusnahan", desc: "Usulan dan persetujuan pemusnahan arsip", icon: "trash" },
   { href: "/pengguna", label: "Pengguna", desc: "Kelola akun dan hak akses", icon: "users", section: "Sistem" },
-  { href: "/pengaturan", label: "Pengaturan", desc: "Preferensi tampilan dan data demo", icon: "settings" },
+  { href: "/pengaturan", label: "Pengaturan", desc: "Preferensi tampilan dan sistem", icon: "settings" },
   { href: "/profil", label: "Profil", desc: "Informasi akun dan keamanan", icon: "user" },
 ];
 

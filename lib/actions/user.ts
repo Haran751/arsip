@@ -4,15 +4,16 @@ import { auth, unstable_update } from "@/auth";
 import {
   ambilPenggunaAuth,
   daftarPenggunaAuth,
-  keDemoUserAuth,
+  keUserAplikasi,
   panggilAuth,
   verifikasiPassword,
   type SupabaseAuthUser,
 } from "@/lib/supabase-admin";
 import { revalidatePath } from "next/cache";
-import type { DemoUser, Role } from "@/lib/demo-data";
+import { sinkronPengguna } from "@/lib/user-sync";
+import type { AppUser, Role } from "@/lib/types";
 
-export type HasilAksi = { ok: boolean; message: string; user?: DemoUser };
+export type HasilAksi = { ok: boolean; message: string; user?: AppUser };
 
 const ROLE_VALID: Role[] = ["Admin", "Operator", "Pimpinan"];
 const PASSWORD_AWAL = "EArsip#2026";
@@ -24,24 +25,24 @@ async function sesiAktif() {
   const user = await ambilPenggunaAuth(session.user.id);
   if (!user) return null;
 
-  const demo = keDemoUserAuth(user);
-  if (!demo || !demo.aktif) return null;
+  const aplikasi = keUserAplikasi(user);
+  if (!aplikasi || !aplikasi.aktif) return null;
 
   return {
-    id: demo.id,
-    role: demo.role as string,
-    email: demo.email,
-    nama: demo.nama,
+    id: aplikasi.id,
+    role: aplikasi.role as string,
+    email: aplikasi.email,
+    nama: aplikasi.nama,
   };
 }
 
 function normalisasiNama(user: SupabaseAuthUser) {
-  const demo = keDemoUserAuth(user);
+  const aplikasi = keUserAplikasi(user);
   return {
-    username: demo?.username ?? "",
-    role: demo?.role ?? "Operator",
-    aktif: demo?.aktif ?? true,
-    nama: demo?.nama ?? "",
+    username: aplikasi?.username ?? "",
+    role: aplikasi?.role ?? "Operator",
+    aktif: aplikasi?.aktif ?? true,
+    nama: aplikasi?.nama ?? "",
   };
 }
 
@@ -114,11 +115,12 @@ export async function simpanPengguna(
         }),
       });
 
-      const demo = keDemoUserAuth(user);
-      if (!demo) return { ok: false, message: "Gagal membaca data pengguna." };
+      const aplikasi = keUserAplikasi(user);
+      if (!aplikasi) return { ok: false, message: "Gagal membaca data pengguna." };
+      await sinkronPengguna(aplikasi, Boolean(user.user_metadata?.must_change_password)).catch(() => undefined);
       revalidatePath("/pengguna");
       revalidatePath("/beranda");
-      return { ok: true, message: "Pengguna berhasil diperbarui.", user: demo };
+      return { ok: true, message: "Pengguna berhasil diperbarui.", user: aplikasi };
     }
 
     const user = await panggilAuth<SupabaseAuthUser>("/auth/v1/admin/users", {
@@ -144,14 +146,16 @@ export async function simpanPengguna(
       });
     }
 
-    const demo = keDemoUserAuth(user);
-    if (!demo) return { ok: false, message: "Gagal membaca data pengguna." };
+    const aplikasi = keUserAplikasi(user);
+    if (!aplikasi) return { ok: false, message: "Gagal membaca data pengguna." };
+    const penggunaBaru = { ...aplikasi, aktif: input.aktif };
+    await sinkronPengguna(penggunaBaru, true).catch(() => undefined);
     revalidatePath("/pengguna");
     revalidatePath("/beranda");
     return {
       ok: true,
       message: `Pengguna ditambahkan. Password awal: ${PASSWORD_AWAL} (wajib diganti saat login pertama).`,
-      user: { ...demo, aktif: input.aktif },
+      user: penggunaBaru,
     };
   } catch (error) {
     return { ok: false, message: error instanceof Error ? error.message : "Gagal menyimpan pengguna." };
@@ -176,13 +180,14 @@ export async function resetPasswordPengguna(id: string): Promise<HasilAksi> {
       }),
     });
 
-    const demo = keDemoUserAuth(user);
-    if (!demo) return { ok: false, message: "Gagal membaca data pengguna." };
+    const aplikasi = keUserAplikasi(user);
+    if (!aplikasi) return { ok: false, message: "Gagal membaca data pengguna." };
+    await sinkronPengguna(aplikasi, true).catch(() => undefined);
     revalidatePath("/pengguna");
     return {
       ok: true,
-      message: `Password ${demo.nama} direset ke: ${PASSWORD_AWAL} (wajib diganti saat login).`,
-      user: demo,
+      message: `Password ${aplikasi.nama} direset ke: ${PASSWORD_AWAL} (wajib diganti saat login).`,
+      user: aplikasi,
     };
   } catch (error) {
     return { ok: false, message: error instanceof Error ? error.message : "Gagal mereset password." };
@@ -216,12 +221,13 @@ export async function simpanProfil(input: { nama: string; email: string }): Prom
       }),
     });
 
-    const demo = keDemoUserAuth(user);
-    if (!demo) return { ok: false, message: "Gagal membaca data pengguna." };
+    const aplikasi = keUserAplikasi(user);
+    if (!aplikasi) return { ok: false, message: "Gagal membaca data pengguna." };
 
+    await sinkronPengguna(aplikasi, Boolean(user.user_metadata?.must_change_password)).catch(() => undefined);
     await unstable_update({ user: { name: nama } }).catch(() => undefined);
     revalidatePath("/profil");
-    return { ok: true, message: "Profil berhasil diperbarui.", user: demo };
+    return { ok: true, message: "Profil berhasil diperbarui.", user: aplikasi };
   } catch (error) {
     return { ok: false, message: error instanceof Error ? error.message : "Gagal memperbarui profil." };
   }
@@ -250,6 +256,18 @@ export async function gantiPasswordSendiri(lama: string, baru: string): Promise<
       }),
     });
 
+    await sinkronPengguna(
+      {
+        id: aktor.id,
+        nama: aktor.nama,
+        username: String(existing.user_metadata?.username ?? aktor.email.split("@")[0]),
+        email: existing.email,
+        role: aktor.role === "Admin" || aktor.role === "Pimpinan" ? aktor.role : "Operator",
+        aktif: true,
+        last_login: existing.last_sign_in_at ?? "",
+      },
+      false,
+    ).catch(() => undefined);
     await unstable_update({ user: { must_change_password: false } }).catch(() => undefined);
     revalidatePath("/profil");
     return { ok: true, message: "Password berhasil diganti." };

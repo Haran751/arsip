@@ -8,6 +8,7 @@ export const kodeArsipSchema = z.object({
   retensi_inaktif_thn: z.coerce.number().int().min(0),
   nasib_akhir: z.enum(['Musnah', 'Permanen', 'Dinilai_Kembali']),
   keterangan: z.string().optional().nullable(),
+  uraian: z.array(z.string()).default([]),
 })
 
 export const arsipSchema = z.object({

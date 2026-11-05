@@ -4,7 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import Icon from "./icon";
 import { navItems } from "@/lib/nav";
-import { useDemo } from "@/lib/demo-store";
+import { useData } from "@/lib/data-store";
 
 type CommandPaletteProps = {
   open: boolean;
@@ -17,7 +17,7 @@ type Hasil =
 
 export default function CommandPalette({ open, onClose }: CommandPaletteProps) {
   const router = useRouter();
-  const { data } = useDemo();
+  const { data } = useData();
   const [query, setQuery] = useState("");
   const [active, setActive] = useState(0);
   const inputRef = useRef<HTMLInputElement>(null);

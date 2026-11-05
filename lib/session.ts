@@ -1,11 +1,11 @@
 import { auth } from "@/auth";
 import {
   ambilPenggunaAuth,
-  daftarPenggunaDemo,
-  keDemoUserAuth,
+  daftarPenggunaAplikasi,
+  keUserAplikasi,
   type SupabaseAuthUser,
 } from "@/lib/supabase-admin";
-import type { DemoUser } from "@/lib/demo-data";
+import type { AppUser } from "@/lib/types";
 
 export async function ambilPenggunaSesi(): Promise<SupabaseAuthUser | null> {
   try {
@@ -15,8 +15,8 @@ export async function ambilPenggunaSesi(): Promise<SupabaseAuthUser | null> {
     const user = await ambilPenggunaAuth(session.user.id);
     if (!user) return null;
 
-    const demo = keDemoUserAuth(user);
-    if (!demo || !demo.aktif) return null;
+    const aplikasi = keUserAplikasi(user);
+    if (!aplikasi || !aplikasi.aktif) return null;
 
     return user;
   } catch {
@@ -24,14 +24,14 @@ export async function ambilPenggunaSesi(): Promise<SupabaseAuthUser | null> {
   }
 }
 
-export async function ambilPenggunaSesiDemo(): Promise<DemoUser | null> {
+export async function ambilPenggunaSesiAplikasi(): Promise<AppUser | null> {
   const user = await ambilPenggunaSesi();
-  return user ? keDemoUserAuth(user) : null;
+  return user ? keUserAplikasi(user) : null;
 }
 
-export async function daftarPenggunaSesiDemo(): Promise<DemoUser[]> {
+export async function daftarPenggunaSesiAplikasi(): Promise<AppUser[]> {
   try {
-    return await daftarPenggunaDemo();
+    return await daftarPenggunaAplikasi();
   } catch {
     return [];
   }

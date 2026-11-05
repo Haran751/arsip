@@ -2241,57 +2241,6 @@ tbody tr:hover td {
   line-height: 1.6;
 }
 
-.demo-box {
-  margin-top: 18px;
-  padding: 13px;
-  border-radius: 14px;
-  border: 1px dashed rgba(15, 143, 87, 0.28);
-  background: #f8fdfa;
-}
-
-.demo-box-title {
-  margin-bottom: 8px;
-  font-size: 10px;
-  font-weight: 800;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-  color: var(--muted);
-}
-
-.demo-accounts {
-  display: grid;
-  gap: 7px;
-}
-
-.demo-account {
-  margin: 0;
-}
-
-.demo-account button {
-  width: 100%;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 10px;
-  padding: 9px 11px;
-  border-radius: 10px;
-  border: 1px solid var(--border);
-  background: #ffffff;
-  color: var(--foreground);
-  font-size: 12px;
-  cursor: pointer;
-  transition: border-color 0.15s ease, background 0.15s ease;
-}
-
-.demo-account button:hover {
-  border-color: rgba(31, 191, 117, 0.5);
-  background: #f2fcf7;
-}
-
-.demo-account small {
-  color: var(--muted);
-}
-
 .error-box {
   margin-bottom: 14px;
   padding: 10px 12px;

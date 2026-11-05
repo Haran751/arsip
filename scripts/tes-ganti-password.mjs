@@ -11,10 +11,10 @@ const env = Object.fromEntries(
     }),
 );
 
-const supabase = env.SUPABASE_URL.replace(/\/+$/, "");
+const supabase = new URL(env.SUPABASE_URL).origin;
 const headers = {
-  apikey: env.SUPABASE_SERVICE_ROLE_KEY,
-  Authorization: `Bearer ${env.SUPABASE_SERVICE_ROLE_KEY}`,
+  apikey: env.SUPABASE_SECRET_KEY,
+  Authorization: `Bearer ${env.SUPABASE_SECRET_KEY}`,
   "Content-Type": "application/json",
 };
 

@@ -3,7 +3,7 @@
 import { useSyncExternalStore } from "react";
 import Icon from "@/components/icon";
 import { usePreferences } from "@/components/preferences";
-import { useDemo } from "@/lib/demo-store";
+import { useData } from "@/lib/data-store";
 
 const MOTION_QUERY = "(prefers-reduced-motion: reduce)";
 
@@ -15,7 +15,7 @@ function subscribeMotion(onChange: () => void) {
 
 export default function PengaturanPage() {
   const { reduceMotion, setReduceMotion } = usePreferences();
-  const { currentUser, resetDemo, toast } = useDemo();
+  const { currentUser, refreshData, toast } = useData();
   const sistem = useSyncExternalStore(
     subscribeMotion,
     () => window.matchMedia(MOTION_QUERY).matches,
@@ -71,11 +71,11 @@ export default function PengaturanPage() {
 
         <div className="pref-row">
           <div>
-            <strong>Data contoh</strong>
-            <p>Kembalikan arsip, kode, usulan, dan log ke kondisi awal. Akun pengguna tidak terpengaruh.</p>
+            <strong>Muat ulang data</strong>
+            <p>Ambil data arsip, folder, kode, usulan, dan log terbaru dari server.</p>
           </div>
-          <button type="button" className="btn btn-ghost btn-sm" onClick={resetDemo}>
-            Reset data contoh
+          <button type="button" className="btn btn-ghost btn-sm" onClick={() => void refreshData()}>
+            Muat ulang
           </button>
         </div>
       </div>
@@ -90,7 +90,7 @@ export default function PengaturanPage() {
         <div className="meta-grid" style={{ marginTop: 0 }}>
           <div className="meta-item">
             <span>Penyimpanan data</span>
-            <strong>localStorage browser</strong>
+            <strong>Supabase PostgreSQL</strong>
           </div>
           <div className="meta-item">
             <span>Autentikasi</span>
@@ -98,7 +98,7 @@ export default function PengaturanPage() {
           </div>
           <div className="meta-item">
             <span>Berkas</span>
-            <strong>Metadata saja</strong>
+            <strong>Supabase Storage privat</strong>
           </div>
           <div className="meta-item">
             <span>Akun pengguna</span>
@@ -108,8 +108,8 @@ export default function PengaturanPage() {
         <div className="note" style={{ marginTop: 16 }}>
           <span className="note-mark" />
           <span>
-            Login, profil, dan manajemen pengguna memakai Supabase Auth. Data arsip, kode, dan log masih tersimpan di
-            browser ini.
+            Login dan manajemen pengguna memakai Supabase Auth. Data arsip, folder, kode, usulan, dan log tersimpan di
+            Supabase PostgreSQL.
           </span>
         </div>
       </div>

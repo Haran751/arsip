@@ -9,7 +9,7 @@ Kamu adalah senior fullstack engineer. Bangun aplikasi WEB "E-Arsip" (manajemen 
 - Excel: exceljs (export dan import), diproses di server.
 - Storage file: Supabase Storage dengan bucket PRIVATE. Upload langsung dari browser ke Supabase lewat signed upload URL (karena Vercel membatasi ukuran body request), download lewat signed URL berumur pendek (60 detik) yang dibuat setelah cek login dan peran. Buat abstraksi storage agar mudah diganti.
 - Penjadwalan: Vercel Cron (endpoint /api/cron/retensi dilindungi CRON_SECRET) untuk job retensi harian. Jangan pakai node-cron karena Vercel bersifat serverless.
-- Deploy: Vercel (frontend + API). Sertakan .env.example (DATABASE_URL, DIRECT_URL, NEXTAUTH_SECRET, SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, CRON_SECRET) dan panduan deploy langkah demi langkah.
+- Deploy: Vercel (frontend + API). Sertakan .env.example (DATABASE_URL, DIRECT_URL, NEXTAUTH_SECRET, SUPABASE_URL, SUPABASE_SECRET_KEY, CRON_SECRET) dan panduan deploy langkah demi langkah.
 - Tanpa Docker, NocoDB, dan Adminer. Pengelolaan database memakai dashboard Supabase.
 
 ## 2. PENGELOLAAN DATABASE OLEH ORANG KANTOR

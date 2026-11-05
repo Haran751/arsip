@@ -1,0 +1,1 @@
+ALTER TABLE "kode_arsip" ADD COLUMN "uraian" TEXT[] NOT NULL DEFAULT ARRAY[]::TEXT[];

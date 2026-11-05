@@ -1,5 +1,6 @@
-﻿import Icon from "@/components/icon";
-import { authLokalAktif } from "@/lib/supabase-admin";
+import Icon from "@/components/icon";
+import { redirect } from "next/navigation";
+import { ambilPenggunaSesi } from "@/lib/session";
 import { loginAction } from "./actions";
 
 export default async function LoginPage({
@@ -9,6 +10,9 @@ export default async function LoginPage({
 }) {
   const params = await searchParams;
   const error = params.error;
+
+  const pengguna = await ambilPenggunaSesi();
+  if (pengguna) redirect("/beranda");
 
   return (
     <main className="login-page">
@@ -57,11 +61,6 @@ export default async function LoginPage({
 
           {error === "lengkap" ? <div className="error-box">Username dan password wajib diisi.</div> : null}
           {error === "1" ? <div className="error-box">Username atau password salah, atau akun tidak aktif.</div> : null}
-          {authLokalAktif() ? (
-            <div className="login-sub">
-              Mode lokal (Supabase belum diatur): <strong>admin</strong> / <strong>admin123</strong>
-            </div>
-          ) : null}
 
           <form action={loginAction}>
             <div className="field">

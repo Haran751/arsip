@@ -41,6 +41,7 @@ model KodeArsip {
   retensi_inaktif_thn Int      @default(0)
   nasib_akhir         String   @default("Musnah")
   keterangan          String?
+  uraian              String[] @default([])
   created_at          DateTime @default(now())
   updated_at          DateTime @updatedAt
 
@@ -53,11 +54,24 @@ model KodeArsip {
   @@map("kode_arsip")
 }
 
+model Folder {
+  id         String   @id @default(cuid())
+  nama       String   @unique
+  keterangan String?
+  pembuat    String
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+  arsip      Arsip[]
+
+  @@map("folder")
+}
+
 model Arsip {
   id                  String    @id @default(cuid())
   nomor_arsip         String    @unique
   judul               String
   kode_arsip_id       String
+  folder_id           String?
   tanggal_arsip       DateTime
   keterangan          String?
   file_path           String?
@@ -76,12 +90,14 @@ model Arsip {
   updated_at          DateTime  @updatedAt
 
   kode_arsip KodeArsip @relation(fields: [kode_arsip_id], references: [id])
+  folder     Folder?   @relation(fields: [folder_id], references: [id])
   pembuat    User      @relation("ArsipDibuat", fields: [created_by], references: [id])
   pengubah   User?     @relation("ArsipDiubah", fields: [updated_by], references: [id])
   riwayat    ArsipRiwayat[]
   item_usulan UsulanPemusnahanItem[]
 
   @@index([kode_arsip_id])
+  @@index([folder_id])
   @@index([tanggal_arsip])
   @@index([akhir_retensi])
   @@index([status_retensi])

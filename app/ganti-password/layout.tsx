@@ -1,16 +1,19 @@
 import { redirect } from "next/navigation";
-import { ambilPenggunaSesiDemo, daftarPenggunaSesiDemo } from "@/lib/session";
-import { DemoProvider } from "@/lib/demo-store";
+import { ambilPenggunaSesiAplikasi } from "@/lib/session";
+import { sinkronPengguna } from "@/lib/user-sync";
+import { ambilDataAplikasi } from "@/lib/data";
+import { DataProvider } from "@/lib/data-store";
 
 export default async function Layout({ children }: { children: React.ReactNode }) {
-  const user = await ambilPenggunaSesiDemo();
+  const user = await ambilPenggunaSesiAplikasi();
   if (!user) redirect("/login");
 
-  const users = await daftarPenggunaSesiDemo();
+  await sinkronPengguna(user, true).catch(() => undefined);
+  const data = await ambilDataAplikasi();
 
   return (
-    <DemoProvider initialUser={user} initialUsers={users.length ? users : [user]}>
+    <DataProvider initialUser={user} initialData={data}>
       {children}
-    </DemoProvider>
+    </DataProvider>
   );
 }

@@ -85,19 +85,3 @@ export function formatBytes(value?: number) {
   return `${(value / (1024 * 1024)).toFixed(1)} MB`;
 }
 
-export function downloadDokumenDemo(nomor: string, judul: string, isi: string[]) {
-  const text = [
-    "E-ARSIP - DOKUMEN DEMO",
-    "======================",
-    `Nomor Arsip : ${nomor}`,
-    `Judul       : ${judul}`,
-    "",
-    ...isi,
-    "",
-    "Catatan: file asli tidak disimpan karena aplikasi masih berjalan dalam mode demo.",
-  ].join("\r\n");
-  download(
-    `${nomor}-${judul.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "")}.txt`,
-    new Blob([text], { type: "text/plain;charset=utf-8" }),
-  );
-}

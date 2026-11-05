@@ -29,8 +29,12 @@ npm run dev
 
 Buka `http://localhost:3000/login`.
 
-`.env` wajib berisi `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, dan `AUTH_SECRET`.
-Contoh lengkap ada di `.env.example`.
+`.env` wajib berisi `SUPABASE_URL`, `SUPABASE_SECRET_KEY`, dan `AUTH_SECRET`.
+Isi otomatis lewat terminal:
+
+```bash
+npm run env:supabase
+```
 
 ## Membuat ulang akun
 

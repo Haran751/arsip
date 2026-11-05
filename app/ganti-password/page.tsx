@@ -2,10 +2,10 @@
 
 import Link from "next/link";
 import { useState } from "react";
-import { useDemo } from "@/lib/demo-store";
+import { useData } from "@/lib/data-store";
 
 export default function GantiPasswordPage() {
-  const { currentUser, changePassword, toast } = useDemo();
+  const { currentUser, changePassword, toast } = useData();
   const [lama, setLama] = useState("");
   const [baru, setBaru] = useState("");
   const [konfirmasi, setKonfirmasi] = useState("");

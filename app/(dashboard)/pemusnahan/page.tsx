@@ -3,11 +3,11 @@
 import { useMemo, useState } from "react";
 import Modal from "@/components/modal";
 import StatusBadge from "@/components/status-badge";
-import { formatTanggal, type Usulan } from "@/lib/demo-data";
-import { useDemo } from "@/lib/demo-store";
+import { formatTanggal, type Usulan } from "@/lib/types";
+import { useData } from "@/lib/data-store";
 
 export default function PemusnahanPage() {
-  const { data, dueArsip, stats, canManage, isAdmin, addUsulan, decideUsulan, toast } = useDemo();
+  const { data, dueArsip, stats, canManage, isAdmin, addUsulan, decideUsulan, toast } = useData();
   const [formOpen, setFormOpen] = useState(false);
   const [detailId, setDetailId] = useState<string | null>(null);
   const [selected, setSelected] = useState<string[]>([]);
@@ -39,12 +39,12 @@ export default function PemusnahanPage() {
     setSelected((current) => (current.includes(id) ? current.filter((item) => item !== id) : [...current, id]));
   };
 
-  const ajukan = () => {
+  const ajukan = async () => {
     if (!selected.length) {
       setFormError("Pilih minimal satu arsip.");
       return;
     }
-    const hasil = addUsulan(selected, catatan);
+    const hasil = await addUsulan(selected, catatan);
     if (!hasil.ok) {
       setFormError(hasil.message ?? "Gagal membuat usulan.");
       return;
@@ -53,8 +53,8 @@ export default function PemusnahanPage() {
     setFormOpen(false);
   };
 
-  const putuskan = (usulan: Usulan, status: "Disetujui" | "Ditolak") => {
-    const hasil = decideUsulan(usulan.id, status);
+  const putuskan = async (usulan: Usulan, status: "Disetujui" | "Ditolak") => {
+    const hasil = await decideUsulan(usulan.id, status);
     toast(hasil.message ?? "Usulan diputuskan.", hasil.ok ? "success" : "error");
   };
 

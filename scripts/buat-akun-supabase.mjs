@@ -10,8 +10,20 @@ const env = Object.fromEntries(
     }),
 );
 
-const base = env.SUPABASE_URL.replace(/\/+$/, "");
-const key = env.SUPABASE_SERVICE_ROLE_KEY;
+let base;
+try {
+  base = new URL(env.SUPABASE_URL).origin;
+} catch {
+  console.error("SUPABASE_URL tidak valid. Jalankan: npm run env:supabase");
+  process.exit(1);
+}
+
+const key = env.SUPABASE_SECRET_KEY;
+if (!key || /ganti|xxx|your|contoh/i.test(key)) {
+  console.error("SUPABASE_SECRET_KEY belum diisi. Jalankan: npm run env:supabase");
+  process.exit(1);
+}
+
 const headers = { apikey: key, Authorization: `Bearer ${key}`, "Content-Type": "application/json" };
 
 const akun = [

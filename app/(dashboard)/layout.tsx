@@ -1,22 +1,25 @@
 import { redirect } from "next/navigation";
 import AppShell from "@/components/app-shell";
-import { ambilPenggunaSesi, daftarPenggunaSesiDemo } from "@/lib/session";
-import { keDemoUserAuth } from "@/lib/supabase-admin";
-import { DemoProvider } from "@/lib/demo-store";
+import { ambilPenggunaSesi } from "@/lib/session";
+import { keUserAplikasi } from "@/lib/supabase-admin";
+import { sinkronPengguna } from "@/lib/user-sync";
+import { ambilDataAplikasi } from "@/lib/data";
+import { DataProvider } from "@/lib/data-store";
 
 export default async function Layout({ children }: { children: React.ReactNode }) {
   const pengguna = await ambilPenggunaSesi();
   if (!pengguna) redirect("/login");
   if (pengguna.user_metadata?.must_change_password) redirect("/ganti-password");
 
-  const user = keDemoUserAuth(pengguna);
+  const user = keUserAplikasi(pengguna);
   if (!user) redirect("/login");
 
-  const users = await daftarPenggunaSesiDemo();
+  await sinkronPengguna(user, Boolean(pengguna.user_metadata?.must_change_password)).catch(() => undefined);
+  const data = await ambilDataAplikasi();
 
   return (
-    <DemoProvider initialUser={user} initialUsers={users.length ? users : [user]}>
+    <DataProvider initialUser={user} initialData={data}>
       <AppShell>{children}</AppShell>
-    </DemoProvider>
+    </DataProvider>
   );
 }

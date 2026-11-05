@@ -2,18 +2,13 @@ import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 
 const COOKIE_SESI = ["authjs.session-token", "__Secure-authjs.session-token"];
+const PUBLIK = ["/login", "/logout"];
 
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
+  if (PUBLIK.includes(pathname)) return NextResponse.next();
+
   const punyaSesi = COOKIE_SESI.some((nama) => request.cookies.has(nama));
-
-  if (pathname === "/login") {
-    if (punyaSesi) return NextResponse.redirect(new URL("/beranda", request.url));
-    return NextResponse.next();
-  }
-
-  if (pathname === "/logout") return NextResponse.next();
-
   if (!punyaSesi) {
     return NextResponse.redirect(new URL("/login", request.url));
   }

@@ -3,11 +3,11 @@
 import { useMemo, useState } from "react";
 import Modal from "@/components/modal";
 import StatusBadge from "@/components/status-badge";
-import { type KodeArsip } from "@/lib/demo-data";
-import { useDemo, type KodeImportRow, type KodeInput } from "@/lib/demo-store";
+import { type KodeArsip, type KodeInput } from "@/lib/types";
+import { useData, type KodeImportRow } from "@/lib/data-store";
 import { downloadCsv, parseCsv } from "@/lib/export";
 
-const TEMPLATE_HEADERS = ["kode", "nama", "retensi_aktif_thn", "retensi_inaktif_thn", "nasib_akhir"];
+const TEMPLATE_HEADERS = ["kode", "nama", "retensi_aktif_thn", "retensi_inaktif_thn", "nasib_akhir", "uraian"];
 const NASIB = ["Musnah", "Permanen", "Dinilai_Kembali"] as const;
 
 type FormState = {
@@ -16,7 +16,12 @@ type FormState = {
   retensi_aktif_thn: string;
   retensi_inaktif_thn: string;
   nasib_akhir: KodeInput["nasib_akhir"];
+  uraian: string;
 };
+
+function uraianTampil(uraian: string[]) {
+  return (uraian ?? []).map((item) => item.trim()).filter(Boolean);
+}
 
 function normalisasiNasib(value: string): KodeInput["nasib_akhir"] | null {
   const text = value.trim().toLowerCase().replace(/[\s-]+/g, "_");
@@ -27,7 +32,7 @@ function normalisasiNasib(value: string): KodeInput["nasib_akhir"] | null {
 }
 
 export default function KodeArsipPage() {
-  const { data, isAdmin, countArsip, saveKode, deleteKode, importKode, toast } = useDemo();
+  const { data, isAdmin, countArsip, saveKode, deleteKode, importKode, toast } = useData();
   const [cari, setCari] = useState("");
   const [formOpen, setFormOpen] = useState(false);
   const [editing, setEditing] = useState<KodeArsip | null>(null);
@@ -38,6 +43,7 @@ export default function KodeArsipPage() {
     retensi_aktif_thn: "0",
     retensi_inaktif_thn: "0",
     nasib_akhir: "Musnah",
+    uraian: "",
   });
   const [formError, setFormError] = useState("");
   const [importOpen, setImportOpen] = useState(false);
@@ -52,7 +58,7 @@ export default function KodeArsipPage() {
 
   const bukaTambah = () => {
     setEditing(null);
-    setForm({ kode: "", nama: "", retensi_aktif_thn: "0", retensi_inaktif_thn: "0", nasib_akhir: "Musnah" });
+    setForm({ kode: "", nama: "", retensi_aktif_thn: "0", retensi_inaktif_thn: "0", nasib_akhir: "Musnah", uraian: "" });
     setFormError("");
     setFormOpen(true);
   };
@@ -65,20 +71,22 @@ export default function KodeArsipPage() {
       retensi_aktif_thn: String(item.retensi_aktif_thn),
       retensi_inaktif_thn: String(item.retensi_inaktif_thn),
       nasib_akhir: item.nasib_akhir,
+      uraian: item.uraian.join("\n"),
     });
     setFormError("");
     setFormOpen(true);
   };
 
-  const simpan = (event: React.FormEvent<HTMLFormElement>) => {
+  const simpan = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    const hasil = saveKode(
+    const hasil = await saveKode(
       {
         kode: form.kode,
         nama: form.nama,
         retensi_aktif_thn: Number(form.retensi_aktif_thn) || 0,
         retensi_inaktif_thn: Number(form.retensi_inaktif_thn) || 0,
         nasib_akhir: form.nasib_akhir,
+        uraian: form.uraian.split("\n").map((item) => item.trim()).filter(Boolean),
       },
       editing?.id,
     );
@@ -90,17 +98,17 @@ export default function KodeArsipPage() {
     setFormOpen(false);
   };
 
-  const konfirmasiHapus = () => {
+  const konfirmasiHapus = async () => {
     if (!hapus) return;
-    const hasil = deleteKode(hapus.id);
+    const hasil = await deleteKode(hapus.id);
     toast(hasil.message ?? (hasil.ok ? "Kode arsip dihapus." : "Gagal menghapus kode."), hasil.ok ? "success" : "error");
     if (hasil.ok) setHapus(null);
   };
 
   const unduhTemplate = () => {
     downloadCsv("template-kode-arsip.csv", TEMPLATE_HEADERS, [
-      ["KEU-02", "Laporan Keuangan Bulanan", 2, 5, "Musnah"],
-      ["HKM-02", "Dokumen Hukum Permanen", 5, 5, "Permanen"],
+      ["KEU-02", "Laporan Keuangan Bulanan", 2, 5, "Musnah", "Laporan Bulanan|Rekap Anggaran"],
+      ["HKM-02", "Dokumen Hukum Permanen", 5, 5, "Permanen", "Peraturan|Keputusan"],
     ]);
     toast("Template CSV kode arsip diunduh.");
   };
@@ -131,11 +139,15 @@ export default function KodeArsipPage() {
       aktif: headers.indexOf("retensi_aktif_thn"),
       inaktif: headers.indexOf("retensi_inaktif_thn"),
       nasib: headers.indexOf("nasib_akhir"),
+      uraian: headers.indexOf("uraian"),
     };
-    if (Object.values(index).some((value) => value < 0)) {
+    const kolomWajib = [index.kode, index.nama, index.aktif, index.inaktif, index.nasib];
+    if (kolomWajib.some((value) => value < 0)) {
       setImportRows([]);
       setImportNama(file.name);
-      setImportError("Header tidak sesuai template. Gunakan: kode, nama, retensi_aktif_thn, retensi_inaktif_thn, nasib_akhir.");
+      setImportError(
+        "Header tidak sesuai template. Wajib: kode, nama, retensi_aktif_thn, retensi_inaktif_thn, nasib_akhir. Opsional: uraian.",
+      );
       setImportOpen(true);
       return;
     }
@@ -148,6 +160,9 @@ export default function KodeArsipPage() {
       const aktif = Number((row[index.aktif] ?? "").trim());
       const inaktif = Number((row[index.inaktif] ?? "").trim());
       const nasib = normalisasiNasib(row[index.nasib] ?? "");
+      const uraian = index.uraian >= 0
+        ? (row[index.uraian] ?? "").split("|").map((item) => item.trim()).filter(Boolean)
+        : [];
       const pesan: string[] = [];
 
       if (!kode) pesan.push("kode kosong");
@@ -166,6 +181,7 @@ export default function KodeArsipPage() {
         retensi_aktif_thn: Number.isInteger(aktif) ? aktif : 0,
         retensi_inaktif_thn: Number.isInteger(inaktif) ? inaktif : 0,
         nasib_akhir: nasib ?? "Musnah",
+        uraian,
         status,
         pesan: pesan.join(", "),
       };
@@ -177,19 +193,20 @@ export default function KodeArsipPage() {
     setImportOpen(true);
   };
 
-  const konfirmasiImpor = () => {
+  const konfirmasiImpor = async () => {
     const valid = importRows.filter((row) => row.status !== "Error");
     if (!valid.length) {
       toast("Tidak ada baris valid untuk diimpor.", "error");
       return;
     }
-    const hasil = importKode(
+    const hasil = await importKode(
       valid.map((row) => ({
         kode: row.kode,
         nama: row.nama,
         retensi_aktif_thn: row.retensi_aktif_thn,
         retensi_inaktif_thn: row.retensi_inaktif_thn,
         nasib_akhir: row.nasib_akhir,
+        uraian: row.uraian,
       })),
     );
     toast(hasil.message ?? "Impor selesai.", hasil.ok ? "success" : "error");
@@ -275,12 +292,17 @@ export default function KodeArsipPage() {
             <tbody>
               {filtered.map((kode) => {
                 const jumlah = countArsip(kode.kode);
+                const daftarUraian = uraianTampil(kode.uraian);
                 return (
                   <tr key={kode.id}>
                     <td className="mono">{kode.kode}</td>
                     <td>
                       <div className="cell-title">{kode.nama}</div>
-                      <div className="cell-sub">parent: {kode.kode.split("-")[0]}</div>
+                      {daftarUraian.length ? (
+                        <div className="cell-sub">
+                          {daftarUraian.map((item, index) => `${index + 1}) ${item}`).join(" • ")}
+                        </div>
+                      ) : null}
                     </td>
                     <td>{kode.retensi_aktif_thn} tahun</td>
                     <td>{kode.retensi_inaktif_thn} tahun</td>
@@ -403,6 +425,17 @@ export default function KodeArsipPage() {
                 required
               />
             </div>
+            <div className="field field-full">
+              <label htmlFor="uraian-kode">Uraian</label>
+              <textarea
+                id="uraian-kode"
+                className="input"
+                value={form.uraian}
+                onChange={(event) => setForm({ ...form, uraian: event.target.value })}
+                placeholder="Satu item per baris"
+                rows={5}
+              />
+            </div>
           </div>
           <div className="form-note">
             Contoh: retensi aktif 2 tahun dan inaktif 8 tahun berarti akhir retensi dihitung 10 tahun setelah tanggal arsip.
@@ -475,6 +508,7 @@ export default function KodeArsipPage() {
                     <th>Aktif</th>
                     <th>Inaktif</th>
                     <th>Nasib</th>
+                    <th>Uraian</th>
                     <th>Status</th>
                   </tr>
                 </thead>
@@ -487,6 +521,11 @@ export default function KodeArsipPage() {
                       <td>{row.retensi_aktif_thn}</td>
                       <td>{row.retensi_inaktif_thn}</td>
                       <td>{row.nasib_akhir === "Dinilai_Kembali" ? "Dinilai Kembali" : row.nasib_akhir}</td>
+                      <td>
+                        {row.uraian.length
+                          ? row.uraian.map((item, index) => `${index + 1}) ${item}`).join(" • ")
+                          : "-"}
+                      </td>
                       <td>
                         <span
                           className={`badge ${

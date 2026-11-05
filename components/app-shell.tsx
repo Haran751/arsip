@@ -5,12 +5,12 @@ import { usePathname } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
 import Icon from "./icon";
 import CommandPalette from "./command-palette";
-import { useDemo } from "@/lib/demo-store";
+import { useData } from "@/lib/data-store";
 import { navItems, mobileNavItems } from "@/lib/nav";
-import { inisial } from "@/lib/demo-data";
+import { inisial } from "@/lib/types";
 
 export default function AppShell({ children }: { children: React.ReactNode }) {
-  const { currentUser: user, stats, dueArsip } = useDemo();
+  const { currentUser: user, stats, dueArsip } = useData();
   const pathname = usePathname();
   const [paletteOpen, setPaletteOpen] = useState(false);
   const [notifOpen, setNotifOpen] = useState(false);

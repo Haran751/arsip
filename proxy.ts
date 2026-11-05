@@ -4,7 +4,7 @@ import type { NextRequest } from "next/server";
 const COOKIE_SESI = ["authjs.session-token", "__Secure-authjs.session-token"];
 const PUBLIK = ["/login", "/logout"];
 
-export function middleware(request: NextRequest) {
+export function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
   if (PUBLIK.includes(pathname)) return NextResponse.next();
 

@@ -38,6 +38,12 @@ function tanpaBorder() {
   };
 }
 
+// Dua tabel yang berdampingan tanpa paragraf akan digabung Word, sehingga
+// isinya bisa bergeser/tertutup. Paragraf kosong ini memisahkannya.
+function paragrafPemisah(): Paragraph {
+  return new Paragraph({ spacing: { before: 0, after: 0 }, children: [] });
+}
+
 function sel(
   teks: string,
   opsi?: {
@@ -46,6 +52,7 @@ function sel(
     span?: number;
     rowSpan?: number;
     size?: number;
+    width?: number;
   },
 ): TableCell {
   const properti: ITableCellOptions = {
@@ -64,19 +71,30 @@ function sel(
     verticalAlign: VerticalAlign.CENTER,
     columnSpan: opsi?.span,
     rowSpan: opsi?.rowSpan,
+    width: opsi?.width ? { size: opsi.width, type: WidthType.DXA } : undefined,
   };
   return new TableCell(properti);
 }
 
-function headerRows(tabel: TabelEkspor): TableRow[] {
+function headerRows(
+  tabel: TabelEkspor,
+  columnWidths: number[],
+  ukuran: number,
+): TableRow[] {
   const adaGrup = tabel.kolom.some((kolom) => kolom.grup);
   const label = new TableRow({
     tableHeader: true,
-    children: tabel.kolom.map((kolom) => sel(kolom.label, { bold: true, align: "center" })),
+    cantSplit: true,
+    children: tabel.kolom.map((kolom, index) =>
+      sel(kolom.label, { bold: true, align: "center", size: ukuran, width: columnWidths[index] }),
+    ),
   });
   const nomor = new TableRow({
     tableHeader: true,
-    children: tabel.kolom.map((_, index) => sel(String(index + 1), { bold: true, align: "center" })),
+    cantSplit: true,
+    children: tabel.kolom.map((_, index) =>
+      sel(String(index + 1), { bold: true, align: "center", size: ukuran, width: columnWidths[index] }),
+    ),
   });
 
   if (!adaGrup) return [label, nomor];
@@ -89,27 +107,43 @@ function headerRows(tabel: TabelEkspor): TableRow[] {
     if (kolom.grup) {
       let span = 1;
       while (index + span < tabel.kolom.length && tabel.kolom[index + span].grup === kolom.grup) span += 1;
-      grup.push(sel(kolom.grup, { bold: true, align: "center", span }));
-      for (let lanjut = 1; lanjut < span; lanjut += 1) grup.push(sel(""));
+      const lebarGrup = columnWidths.slice(index, index + span).reduce((total, lebar) => total + lebar, 0);
+      // docx mengatur gridSpan sendiri, jadi tidak boleh ada sel pengisi tambahan.
+      grup.push(sel(kolom.grup, { bold: true, align: "center", span, size: ukuran, width: lebarGrup }));
       for (let lanjut = 0; lanjut < span; lanjut += 1) {
-        subLabel.push(sel(tabel.kolom[index + lanjut].label, { bold: true, align: "center" }));
+        subLabel.push(
+          sel(tabel.kolom[index + lanjut].label, {
+            bold: true,
+            align: "center",
+            size: ukuran,
+            width: columnWidths[index + lanjut],
+          }),
+        );
       }
       index += span;
     } else {
-      grup.push(sel(kolom.label, { bold: true, align: "center", rowSpan: 2 }));
-      subLabel.push(sel(""));
+      // rowSpan juga otomatis dibuatkan sel lanjutan oleh docx di baris bawahnya.
+      grup.push(
+        sel(kolom.label, {
+          bold: true,
+          align: "center",
+          rowSpan: 2,
+          size: ukuran,
+          width: columnWidths[index],
+        }),
+      );
       index += 1;
     }
   }
 
   return [
-    new TableRow({ tableHeader: true, children: grup }),
-    new TableRow({ tableHeader: true, children: subLabel }),
+    new TableRow({ tableHeader: true, cantSplit: true, children: grup }),
+    new TableRow({ tableHeader: true, cantSplit: true, children: subLabel }),
     nomor,
   ];
 }
 
-function kop(tabel: TabelEkspor, contentWidth: number): Table[] {
+function kop(tabel: TabelEkspor, contentWidth: number): (Table | Paragraph)[] {
   const judul = new Paragraph({
     alignment: AlignmentType.CENTER,
     spacing: { before: 0, after: 0 },
@@ -144,16 +178,19 @@ function kop(tabel: TabelEkspor, contentWidth: number): Table[] {
   const tabelKop = new Table({
     width: { size: contentWidth, type: WidthType.DXA },
     columnWidths: [1200, contentWidth - 2400, 1200],
+    layout: TableLayoutType.FIXED,
     borders: tanpaBorder(),
-    rows: [new TableRow({ children: [kiri, tengah, kanan] })],
+    rows: [new TableRow({ cantSplit: true, children: [kiri, tengah, kanan] })],
   });
 
   const keterangan = new Table({
     width: { size: contentWidth, type: WidthType.DXA },
     columnWidths: [contentWidth],
+    layout: TableLayoutType.FIXED,
     borders: tanpaBorder(),
     rows: [
       new TableRow({
+        cantSplit: true,
         children: [
           new TableCell({
             children: [
@@ -172,7 +209,7 @@ function kop(tabel: TabelEkspor, contentWidth: number): Table[] {
     ],
   });
 
-  return [tabelKop, keterangan];
+  return [tabelKop, paragrafPemisah(), keterangan];
 }
 
 function tandaTangan(tabel: TabelEkspor, contentWidth: number): Table {
@@ -214,27 +251,38 @@ function tandaTangan(tabel: TabelEkspor, contentWidth: number): Table {
   return new Table({
     width: { size: contentWidth, type: WidthType.DXA },
     columnWidths: [Math.floor(contentWidth / 2), Math.ceil(contentWidth / 2)],
+    layout: TableLayoutType.FIXED,
     borders: tanpaBorder(),
-    rows: [new TableRow({ children: [kiri, kanan] })],
+    rows: [new TableRow({ cantSplit: true, children: [kiri, kanan] })],
   });
 }
 
 export async function buatDocx(tabel: TabelEkspor): Promise<Buffer> {
   const landscape = tabel.orientasi === "landscape";
   const contentWidth = (landscape ? A4_TINGGI : A4_LEBAR) - MARGIN * 2;
-  const totalLebar = tabel.kolom.reduce((total, kolom) => total + kolom.lebar, 0);
+  const totalLebar = tabel.kolom.reduce((total, kolom) => total + Math.max(1, kolom.lebar), 0);
+  // Lebar minimum supaya judul kolom pendek tetap terbaca dan tidak terbungkus aneh.
+  const lebarMinimum = Math.min(560, Math.floor(contentWidth / tabel.kolom.length));
   const columnWidths = tabel.kolom.map((kolom) =>
-    Math.max(280, Math.round((kolom.lebar / totalLebar) * contentWidth)),
+    Math.max(lebarMinimum, Math.round((Math.max(1, kolom.lebar) / totalLebar) * contentWidth)),
   );
+  // Pastikan total lebar kolom tepat sama dengan lebar area cetak (tidak melewati margin).
+  const selisihLebar = contentWidth - columnWidths.reduce((total, lebar) => total + lebar, 0);
+  if (selisihLebar !== 0) {
+    const terlebar = columnWidths.indexOf(Math.max(...columnWidths));
+    columnWidths[terlebar] += selisihLebar;
+  }
   const ukuran = tabel.kolom.length >= 13 ? 16 : 18;
 
   const isi = tabel.baris.map(
     (baris) =>
       new TableRow({
+        cantSplit: true,
         children: baris.map((nilai, index) =>
           sel(String(nilai ?? ""), {
             align: tabel.kolom[index]?.align,
             size: ukuran,
+            width: columnWidths[index],
           }),
         ),
       }),
@@ -244,6 +292,7 @@ export async function buatDocx(tabel: TabelEkspor): Promise<Buffer> {
     width: { size: contentWidth, type: WidthType.DXA },
     columnWidths,
     layout: TableLayoutType.FIXED,
+    margins: { top: 20, bottom: 20, left: 60, right: 60 },
     borders: {
       top: border(),
       bottom: border(),
@@ -252,7 +301,7 @@ export async function buatDocx(tabel: TabelEkspor): Promise<Buffer> {
       insideHorizontal: border(),
       insideVertical: border(),
     },
-    rows: [...headerRows(tabel), ...isi],
+    rows: [...headerRows(tabel, columnWidths, ukuran), ...isi],
   });
 
   const anak: (Table | Paragraph)[] = [];
@@ -269,7 +318,10 @@ export async function buatDocx(tabel: TabelEkspor): Promise<Buffer> {
     );
   }
   anak.push(tabelUtama);
-  if (tabel.tandaTangan) anak.push(tandaTangan(tabel, contentWidth));
+  if (tabel.tandaTangan) {
+    anak.push(paragrafPemisah());
+    anak.push(tandaTangan(tabel, contentWidth));
+  }
 
   const dokumen = new Document({
     styles: {
@@ -284,8 +336,9 @@ export async function buatDocx(tabel: TabelEkspor): Promise<Buffer> {
         properties: {
           page: {
             size: {
-              width: landscape ? A4_TINGGI : A4_LEBAR,
-              height: landscape ? A4_LEBAR : A4_TINGGI,
+              // docx menukar width/height sendiri saat orientasi landscape.
+              width: A4_LEBAR,
+              height: A4_TINGGI,
               orientation: landscape ? PageOrientation.LANDSCAPE : PageOrientation.PORTRAIT,
             },
             margin: { top: MARGIN, right: MARGIN, bottom: MARGIN, left: MARGIN },

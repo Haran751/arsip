@@ -74,6 +74,18 @@ model Arsip {
   folder_id           String?
   tanggal_arsip       DateTime
   keterangan          String?
+  nomor_berkas        String?
+  nomor_item          String?
+  indeks              String?
+  jumlah_folder       Int?
+  tingkat_perkembangan String?
+  jumlah_halaman      Int?
+  sifat_arsip         String?
+  lokasi_cabinet      String?
+  lokasi_laci         String?
+  lokasi_folder       String?
+  kurun_waktu         String?
+  nomor_boks          String?
   file_path           String?
   file_name           String?
   file_size           Int?

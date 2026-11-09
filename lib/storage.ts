@@ -3,10 +3,10 @@ import { randomUUID } from 'crypto'
 
 const BUCKET = 'arsip'
 
-export async function createSignedUploadUrl(ext: string, contentType: string) {
+export async function createSignedUploadUrl(ext: string, contentType: string, folder = 'arsip') {
   void contentType;
   const filename = `${randomUUID()}.${ext.replace(/^\./,'')}`
-  const path = `arsip/${filename}`
+  const path = `${folder.replace(/\/+$/,'')}/${filename}`
   const { data, error } = await supabaseAdmin.storage.from(BUCKET).createSignedUploadUrl(path)
   if (error) throw error
   return { signedUrl: data.signedUrl, path, filename }

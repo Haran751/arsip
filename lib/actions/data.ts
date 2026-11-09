@@ -29,6 +29,31 @@ function rapikanUraian(uraian: string[] | undefined) {
   return (uraian ?? []).map((item) => item.trim()).filter(Boolean);
 }
 
+function teksAtauNull(nilai: string | undefined) {
+  return nilai?.trim() || null;
+}
+
+function angkaAtauNull(nilai: number | undefined) {
+  return typeof nilai === "number" && Number.isFinite(nilai) ? Math.trunc(nilai) : null;
+}
+
+function detailEkspor(input: ArsipInput) {
+  return {
+    nomor_berkas: teksAtauNull(input.nomor_berkas),
+    nomor_item: teksAtauNull(input.nomor_item),
+    indeks: teksAtauNull(input.indeks),
+    jumlah_folder: angkaAtauNull(input.jumlah_folder),
+    tingkat_perkembangan: teksAtauNull(input.tingkat_perkembangan),
+    jumlah_halaman: angkaAtauNull(input.jumlah_halaman),
+    sifat_arsip: teksAtauNull(input.sifat_arsip),
+    lokasi_cabinet: teksAtauNull(input.lokasi_cabinet),
+    lokasi_laci: teksAtauNull(input.lokasi_laci),
+    lokasi_folder: teksAtauNull(input.lokasi_folder),
+    kurun_waktu: teksAtauNull(input.kurun_waktu),
+    nomor_boks: teksAtauNull(input.nomor_boks),
+  };
+}
+
 export async function muatDataAksi() {
   await sesiPengguna();
   const { ambilDataAplikasi } = await import("@/lib/data");
@@ -78,6 +103,7 @@ export async function simpanArsipAksi(input: ArsipInput, id?: string): Promise<A
             folder_id: folderId,
             tanggal_arsip: tanggal,
             keterangan: input.keterangan?.trim() || null,
+            ...detailEkspor(input),
             file_path: input.file_path?.trim() || existing.file_path,
             file_name: input.file_name?.trim() || existing.file_name,
             file_size: input.file_size ?? existing.file_size,
@@ -114,6 +140,7 @@ export async function simpanArsipAksi(input: ArsipInput, id?: string): Promise<A
             folder_id: folderId,
             tanggal_arsip: tanggal,
             keterangan: input.keterangan?.trim() || null,
+            ...detailEkspor(input),
             file_path: input.file_path?.trim() || null,
             file_name: input.file_name?.trim() || null,
             file_size: input.file_size ?? null,

@@ -43,10 +43,31 @@ export type Arsip = {
   pembuat: string;
   created_at?: string;
   keterangan?: string;
+  nomor_berkas?: string;
+  nomor_item?: string;
+  indeks?: string;
+  jumlah_folder?: number;
+  tingkat_perkembangan?: string;
+  jumlah_halaman?: number;
+  sifat_arsip?: string;
+  lokasi_cabinet?: string;
+  lokasi_laci?: string;
+  lokasi_folder?: string;
+  kurun_waktu?: string;
+  nomor_boks?: string;
   file_path?: string;
   file_name?: string;
   file_size?: number;
   file_type?: string;
+};
+
+export type Instansi = {
+  unit_pengolah: string;
+  nama_pimpinan: string;
+  nip_pimpinan: string;
+  nama_pengelola: string;
+  nip_pengelola: string;
+  logo_path?: string;
 };
 
 export type LogEntry = {
@@ -79,6 +100,18 @@ export type ArsipInput = {
   folder_id: string;
   tanggal_arsip: string;
   keterangan?: string;
+  nomor_berkas?: string;
+  nomor_item?: string;
+  indeks?: string;
+  jumlah_folder?: number;
+  tingkat_perkembangan?: string;
+  jumlah_halaman?: number;
+  sifat_arsip?: string;
+  lokasi_cabinet?: string;
+  lokasi_laci?: string;
+  lokasi_folder?: string;
+  kurun_waktu?: string;
+  nomor_boks?: string;
   file_path?: string;
   file_name?: string;
   file_size?: number;

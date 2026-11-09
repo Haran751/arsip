@@ -1081,6 +1081,160 @@ input[type="date"].input {
   line-height: 1.55;
 }
 
+.form-details {
+  border: 1px dashed var(--border);
+  border-radius: 14px;
+  padding: 10px 14px 14px;
+  background: #fbfdfc;
+}
+
+.form-details summary {
+  cursor: pointer;
+  font-size: 11.5px;
+  font-weight: 750;
+  color: var(--foreground);
+}
+
+.form-details summary:hover {
+  color: var(--primary-deep, #0f8f57);
+}
+
+.ekspor-label {
+  margin: 18px 0 8px;
+  font-size: 11.5px;
+  font-weight: 750;
+  color: var(--foreground);
+}
+
+.pilihan-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 10px;
+}
+
+.pilihan-card {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 12px 14px;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: #ffffff;
+  cursor: pointer;
+  transition: border-color 0.15s ease, background 0.15s ease, box-shadow 0.15s ease;
+}
+
+.pilihan-card:hover {
+  border-color: var(--border-strong, #cfe3da);
+}
+
+.pilihan-card.aktif {
+  border-color: rgba(31, 191, 117, 0.55);
+  background: #f5fbf7;
+  box-shadow: 0 0 0 3px rgba(31, 191, 117, 0.1);
+}
+
+.pilihan-card input {
+  margin-top: 3px;
+  accent-color: var(--primary);
+}
+
+.pilihan-body {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.pilihan-body strong {
+  font-size: 12.5px;
+  color: var(--foreground);
+}
+
+.pilihan-body span {
+  font-size: 11.5px;
+  color: var(--muted);
+  line-height: 1.5;
+}
+
+.pilihan-format {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.ekspor-info {
+  margin-top: 16px;
+  padding: 11px 13px;
+  border-radius: 12px;
+  background: #f5fbf7;
+  font-size: 11.5px;
+  color: var(--muted);
+  line-height: 1.55;
+}
+
+.ekspor-info.kosong {
+  background: #fff4e0;
+  color: #a66a00;
+}
+
+/* ---------- Konfigurasi instansi & logo ---------- */
+
+.logo-config {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  flex-wrap: wrap;
+  margin-top: 18px;
+  padding: 14px;
+  border: 1px dashed var(--border);
+  border-radius: 14px;
+  background: #fbfdfc;
+}
+
+.logo-preview {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 96px;
+  height: 96px;
+  border-radius: 14px;
+  border: 1px solid var(--border);
+  background: #ffffff;
+  overflow: hidden;
+  flex-shrink: 0;
+  font-size: 10.5px;
+  color: var(--muted);
+  text-align: center;
+  padding: 6px;
+}
+
+.logo-preview img {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+}
+
+.logo-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  flex: 1;
+  min-width: 220px;
+}
+
+.logo-actions .field-hint {
+  flex-basis: 100%;
+  margin: 0;
+}
+
+.checkbox {
+  width: 16px;
+  height: 16px;
+  accent-color: var(--primary);
+  cursor: pointer;
+}
+
 /* ---------- Tombol ---------- */
 
 .btn {
@@ -1210,6 +1364,16 @@ input[type="date"].input {
 
 .chip button:hover {
   color: #b83a3a;
+}
+
+.chip-accent {
+  border-color: rgba(31, 191, 117, 0.35);
+  background: #e3f7ec;
+  color: #0b7a4b;
+}
+
+.chip-accent strong {
+  color: #0b7a4b;
 }
 
 .badge {

@@ -16,6 +16,7 @@ import type {
   Arsip,
   ArsipInput,
   FolderInput,
+  Instansi,
   KodeInput,
   LogEntry,
   UserInput,
@@ -39,6 +40,7 @@ import {
   simpanPengguna,
   simpanProfil,
 } from "./actions/user";
+import { simpanInstansiAksi } from "./actions/instansi";
 
 export type KodeImportRow = KodeInput & {
   baris: number;
@@ -90,6 +92,7 @@ type DataContextValue = {
   addUsulan: (itemIds: string[], catatan?: string) => Promise<ActionResult>;
   decideUsulan: (id: string, status: "Disetujui" | "Ditolak") => Promise<ActionResult>;
   saveUser: (input: UserInput, id?: string) => Promise<UserActionResult>;
+  saveInstansi: (input: Instansi) => Promise<ActionResult>;
   resetUserPassword: (id: string) => Promise<UserActionResult>;
   updateProfile: (patch: Pick<UserInput, "nama" | "email">) => Promise<UserActionResult>;
   changePassword: (lama: string, baru: string) => Promise<ActionResult>;
@@ -278,6 +281,15 @@ export function DataProvider({
     [refreshData],
   );
 
+  const saveInstansi = useCallback(
+    async (input: Instansi) => {
+      const hasil = await simpanInstansiAksi(input);
+      if (hasil.ok) await refreshData();
+      return hasil;
+    },
+    [refreshData],
+  );
+
   const resetUserPassword = useCallback(
     async (id: string): Promise<UserActionResult> => {
       const hasil = await resetPasswordPengguna(id);
@@ -339,6 +351,7 @@ export function DataProvider({
     addUsulan,
     decideUsulan,
     saveUser,
+    saveInstansi,
     resetUserPassword,
     updateProfile,
     changePassword,

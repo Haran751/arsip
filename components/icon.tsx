@@ -14,6 +14,7 @@ export type IconName =
   | "settings"
   | "plus"
   | "download"
+  | "upload"
   | "edit"
   | "dots"
   | "close"
@@ -140,6 +141,14 @@ export default function Icon({ name, size = 18, ...props }: IconProps) {
           <path d="M12 4v10" />
           <path d="m8 10 4 4 4-4" />
           <path d="M5 19h14" />
+        </svg>
+      );
+    case "upload":
+      return (
+        <svg {...common}>
+          <path d="M12 20V10" />
+          <path d="m8 14 4-4 4 4" />
+          <path d="M5 5h14" />
         </svg>
       );
     case "edit":

@@ -1,6 +1,6 @@
 import { prisma } from "./prisma";
 import { daftarPenggunaAplikasi, keUserAplikasi } from "./supabase-admin";
-import type { AppUser, Arsip, Folder, KodeArsip, LogEntry, Role, StatusRetensi, Usulan } from "./types";
+import type { AppUser, Arsip, Folder, Instansi, KodeArsip, LogEntry, Role, StatusRetensi, Usulan } from "./types";
 
 export type AppData = {
   arsip: Arsip[];
@@ -9,7 +9,30 @@ export type AppData = {
   users: AppUser[];
   usulan: Usulan[];
   logs: LogEntry[];
+  instansi: Instansi;
 };
+
+export const INSTANSI_KOSONG: Instansi = {
+  unit_pengolah: "",
+  nama_pimpinan: "",
+  nip_pimpinan: "",
+  nama_pengelola: "",
+  nip_pengelola: "",
+  logo_path: "",
+};
+
+export function keInstansi(nilai: unknown): Instansi {
+  const data = (nilai ?? {}) as Record<string, unknown>;
+  const teks = (kunci: string) => String(data[kunci] ?? "");
+  return {
+    unit_pengolah: teks("unit_pengolah"),
+    nama_pimpinan: teks("nama_pimpinan"),
+    nip_pimpinan: teks("nip_pimpinan"),
+    nama_pengelola: teks("nama_pengelola"),
+    nip_pengelola: teks("nip_pengelola"),
+    logo_path: teks("logo_path"),
+  };
+}
 
 function tanggalSaja(value: Date | null | undefined) {
   return value ? value.toISOString().slice(0, 10) : "";
@@ -44,7 +67,7 @@ async function ambilPengguna(): Promise<AppUser[]> {
 }
 
 export async function ambilDataAplikasi(): Promise<AppData> {
-  const [arsip, folders, kodeArsip, usulan, logs, users] = await Promise.all([
+  const [arsip, folders, kodeArsip, usulan, logs, users, pengaturan] = await Promise.all([
     prisma.arsip.findMany({
       where: { deleted_at: null },
       include: { kode_arsip: true, pembuat: true },
@@ -62,6 +85,7 @@ export async function ambilDataAplikasi(): Promise<AppData> {
       take: 500,
     }),
     ambilPengguna(),
+    prisma.pengaturan.findUnique({ where: { kunci: "instansi" } }),
   ]);
 
   const jumlahPerKode = new Map<string, number>();
@@ -82,6 +106,18 @@ export async function ambilDataAplikasi(): Promise<AppData> {
       pembuat: item.pembuat.nama,
       created_at: item.created_at.toISOString(),
       keterangan: item.keterangan ?? undefined,
+      nomor_berkas: item.nomor_berkas ?? undefined,
+      nomor_item: item.nomor_item ?? undefined,
+      indeks: item.indeks ?? undefined,
+      jumlah_folder: item.jumlah_folder ?? undefined,
+      tingkat_perkembangan: item.tingkat_perkembangan ?? undefined,
+      jumlah_halaman: item.jumlah_halaman ?? undefined,
+      sifat_arsip: item.sifat_arsip ?? undefined,
+      lokasi_cabinet: item.lokasi_cabinet ?? undefined,
+      lokasi_laci: item.lokasi_laci ?? undefined,
+      lokasi_folder: item.lokasi_folder ?? undefined,
+      kurun_waktu: item.kurun_waktu ?? undefined,
+      nomor_boks: item.nomor_boks ?? undefined,
       file_path: item.file_path ?? undefined,
       file_name: item.file_name ?? undefined,
       file_size: item.file_size ?? undefined,
@@ -126,6 +162,7 @@ export async function ambilDataAplikasi(): Promise<AppData> {
       sumber: item.sumber === "Database" ? "Database" : "Aplikasi",
       jenis: jenisLog(item.data_json),
     })),
+    instansi: keInstansi(pengaturan?.nilai),
   };
 }
 

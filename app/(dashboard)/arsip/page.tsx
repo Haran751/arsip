@@ -19,8 +19,33 @@ import { useData } from "@/lib/data-store";
 import { formatBytes } from "@/lib/export";
 import { ambilUrlUnduhAksi } from "@/lib/actions/storage";
 import { hitungRetensi } from "@/lib/retensi";
+import { LABEL_JENIS, type FormatEkspor, type JenisEkspor } from "@/lib/ekspor/types";
 
 const PAGE_SIZE = 8;
+
+const PILIHAN_EKSPOR: { value: JenisEkspor; label: string; deskripsi: string }[] = [
+  {
+    value: "isi-berkas-aktif",
+    label: LABEL_JENIS["isi-berkas-aktif"],
+    deskripsi: "Rincian per item arsip lengkap dengan lokasi filling cabinet, laci, dan folder.",
+  },
+  {
+    value: "daftar-berkas",
+    label: LABEL_JENIS["daftar-berkas"],
+    deskripsi: "Rekap per nomor berkas beserta kurun waktu dan jumlah item.",
+  },
+  {
+    value: "arsip-dipindahkan",
+    label: LABEL_JENIS["arsip-dipindahkan"],
+    deskripsi: "Daftar arsip yang dipindahkan beserta nomor boks.",
+  },
+];
+
+const FORMAT_PILIHAN: { value: FormatEkspor; label: string }[] = [
+  { value: "pdf", label: "PDF" },
+  { value: "docx", label: "DOCX" },
+  { value: "xlsx", label: "XLSX" },
+];
 
 const BULAN = [
   ["01", "Januari"],
@@ -46,6 +71,18 @@ type ArsipFormState = {
   folder_id: string;
   tanggal_arsip: string;
   keterangan: string;
+  nomor_berkas: string;
+  nomor_item: string;
+  indeks: string;
+  jumlah_folder: string;
+  tingkat_perkembangan: string;
+  jumlah_halaman: string;
+  sifat_arsip: string;
+  lokasi_cabinet: string;
+  lokasi_laci: string;
+  lokasi_folder: string;
+  kurun_waktu: string;
+  nomor_boks: string;
   file_name: string;
   file_size?: number;
   file_type: string;
@@ -55,6 +92,34 @@ type FolderFormState = {
   nama: string;
   keterangan: string;
 };
+
+const DETAIL_KOSONG = {
+  nomor_berkas: "",
+  nomor_item: "",
+  indeks: "",
+  jumlah_folder: "",
+  tingkat_perkembangan: "",
+  jumlah_halaman: "",
+  sifat_arsip: "",
+  lokasi_cabinet: "",
+  lokasi_laci: "",
+  lokasi_folder: "",
+  kurun_waktu: "",
+  nomor_boks: "",
+};
+
+function angkaDariTeks(nilai: string) {
+  const bersih = nilai.trim();
+  if (!bersih) return undefined;
+  const angka = Number(bersih);
+  return Number.isFinite(angka) ? Math.trunc(angka) : undefined;
+}
+
+function namaBerkasUnduhan(header: string | null) {
+  if (!header) return null;
+  const cocok = /filename\*?=(?:UTF-8''|")?([^";]+)/i.exec(header);
+  return cocok ? decodeURIComponent(cocok[1]) : null;
+}
 
 function today() {
   const value = new Date();
@@ -74,6 +139,7 @@ export default function ArsipPage() {
     deleteFolder,
     nextNomorArsip,
     catatLog,
+    refreshData,
     toast,
   } = useData();
 
@@ -116,11 +182,20 @@ export default function ArsipPage() {
     folder_id: "",
     tanggal_arsip: "",
     keterangan: "",
+    ...DETAIL_KOSONG,
     file_name: "",
     file_type: "",
   });
   const [formError, setFormError] = useState("");
   const paramsHandled = useRef(false);
+
+  // Pilihan baris & ekspor
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(() => new Set());
+  const [eksporOpen, setEksporOpen] = useState(false);
+  const [jenisEkspor, setJenisEkspor] = useState<JenisEkspor>("isi-berkas-aktif");
+  const [formatEkspor, setFormatEkspor] = useState<FormatEkspor>("pdf");
+  const [mengekspor, setMengekspor] = useState(false);
+  const pilihSemuaRef = useRef<HTMLInputElement>(null);
 
   // Folder aktif objek
   const folderAktif = useMemo(
@@ -188,6 +263,38 @@ export default function ArsipPage() {
   const paged = filtered.slice((halaman - 1) * PAGE_SIZE, halaman * PAGE_SIZE);
   const awal = filtered.length === 0 ? 0 : (halaman - 1) * PAGE_SIZE + 1;
   const akhir = Math.min(halaman * PAGE_SIZE, filtered.length);
+
+  const idHalaman = paged.map((arsip) => arsip.id);
+  const semuaHalamanTerpilih = idHalaman.length > 0 && idHalaman.every((id) => selectedIds.has(id));
+  const sebagianHalamanTerpilih = !semuaHalamanTerpilih && idHalaman.some((id) => selectedIds.has(id));
+  const jumlahEkspor = selectedIds.size > 0 ? selectedIds.size : filtered.length;
+
+  useEffect(() => {
+    if (pilihSemuaRef.current) {
+      pilihSemuaRef.current.indeterminate = sebagianHalamanTerpilih;
+    }
+  }, [sebagianHalamanTerpilih]);
+
+  const togglePilih = (id: string) => {
+    setSelectedIds((current) => {
+      const next = new Set(current);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const togglePilihHalaman = () => {
+    setSelectedIds((current) => {
+      const next = new Set(current);
+      if (semuaHalamanTerpilih) {
+        idHalaman.forEach((id) => next.delete(id));
+      } else {
+        idHalaman.forEach((id) => next.add(id));
+      }
+      return next;
+    });
+  };
 
   const detail = detailId ? (data.arsip.find((arsip) => arsip.id === detailId) ?? null) : null;
   const detailFolder = detail ? data.folders.find((f) => f.id === detail.folder_id) : null;
@@ -274,6 +381,7 @@ export default function ArsipPage() {
       folder_id: targetFolderId,
       tanggal_arsip: tanggal,
       keterangan: "",
+      ...DETAIL_KOSONG,
       file_name: "",
       file_type: "",
     });
@@ -325,6 +433,18 @@ export default function ArsipPage() {
       folder_id: arsip.folder_id,
       tanggal_arsip: arsip.tanggal_arsip,
       keterangan: arsip.keterangan ?? "",
+      nomor_berkas: arsip.nomor_berkas ?? "",
+      nomor_item: arsip.nomor_item ?? "",
+      indeks: arsip.indeks ?? "",
+      jumlah_folder: arsip.jumlah_folder?.toString() ?? "",
+      tingkat_perkembangan: arsip.tingkat_perkembangan ?? "",
+      jumlah_halaman: arsip.jumlah_halaman?.toString() ?? "",
+      sifat_arsip: arsip.sifat_arsip ?? "",
+      lokasi_cabinet: arsip.lokasi_cabinet ?? "",
+      lokasi_laci: arsip.lokasi_laci ?? "",
+      lokasi_folder: arsip.lokasi_folder ?? "",
+      kurun_waktu: arsip.kurun_waktu ?? "",
+      nomor_boks: arsip.nomor_boks ?? "",
       file_name: arsip.file_name ?? "",
       file_size: arsip.file_size,
       file_type: arsip.file_type ?? "",
@@ -343,6 +463,18 @@ export default function ArsipPage() {
       folder_id: form.folder_id,
       tanggal_arsip: form.tanggal_arsip,
       keterangan: form.keterangan,
+      nomor_berkas: form.nomor_berkas,
+      nomor_item: form.nomor_item,
+      indeks: form.indeks,
+      jumlah_folder: angkaDariTeks(form.jumlah_folder),
+      tingkat_perkembangan: form.tingkat_perkembangan,
+      jumlah_halaman: angkaDariTeks(form.jumlah_halaman),
+      sifat_arsip: form.sifat_arsip,
+      lokasi_cabinet: form.lokasi_cabinet,
+      lokasi_laci: form.lokasi_laci,
+      lokasi_folder: form.lokasi_folder,
+      kurun_waktu: form.kurun_waktu,
+      nomor_boks: form.nomor_boks,
       file_name: form.file_name || undefined,
       file_size: form.file_size,
       file_type: form.file_type || undefined,
@@ -376,6 +508,46 @@ export default function ArsipPage() {
     toast("Unduhan disiapkan.");
   };
 
+  const unduhEkspor = async () => {
+    const ids = selectedIds.size > 0 ? Array.from(selectedIds) : filtered.map((arsip) => arsip.id);
+    if (ids.length === 0) {
+      toast("Tidak ada data untuk diekspor.", "info");
+      return;
+    }
+
+    setMengekspor(true);
+    try {
+      const res = await fetch("/api/ekspor", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ jenis: jenisEkspor, format: formatEkspor, ids }),
+      });
+
+      if (!res.ok) {
+        const data = (await res.json().catch(() => null)) as { error?: string } | null;
+        throw new Error(data?.error ?? "Gagal mengekspor data.");
+      }
+
+      const blob = await res.blob();
+      const nama = namaBerkasUnduhan(res.headers.get("Content-Disposition")) ?? `ekspor.${formatEkspor}`;
+      const url = URL.createObjectURL(blob);
+      const tautan = document.createElement("a");
+      tautan.href = url;
+      tautan.download = nama;
+      document.body.appendChild(tautan);
+      tautan.click();
+      tautan.remove();
+      URL.revokeObjectURL(url);
+      toast(`Ekspor ${formatEkspor.toUpperCase()} berhasil diunduh.`);
+      setEksporOpen(false);
+      await refreshData();
+    } catch (error) {
+      toast(error instanceof Error ? error.message : "Gagal mengekspor data.", "error");
+    } finally {
+      setMengekspor(false);
+    }
+  };
+
   const konfirmasiHapus = async () => {
     if (!hapus) return;
     setMenghapusArsip(true);
@@ -383,6 +555,11 @@ export default function ArsipPage() {
       const hasil = await deleteArsip(hapus.id);
       toast(hasil.message ?? (hasil.ok ? "Arsip dihapus." : "Gagal menghapus arsip."), hasil.ok ? "success" : "error");
       if (hasil.ok) {
+        setSelectedIds((current) => {
+          const next = new Set(current);
+          next.delete(hapus.id);
+          return next;
+        });
         setHapus(null);
         setDetailId(null);
       }
@@ -401,6 +578,7 @@ export default function ArsipPage() {
     setModeTanggal("");
     setTanggal1("");
     setTanggal2("");
+    setSelectedIds(new Set());
     setPage(1);
     toast("Filter arsip dibersihkan.", "info");
   };
@@ -573,6 +751,16 @@ export default function ArsipPage() {
               </p>
             </div>
             <div className="actions-row">
+              {canManage ? (
+                <button
+                  type="button"
+                  className="btn btn-ghost btn-sm"
+                  onClick={() => setEksporOpen(true)}
+                  disabled={filtered.length === 0}
+                >
+                  <Icon name="download" size={15} /> Ekspor
+                </button>
+              ) : null}
               {aktifFilter ? (
                 <button type="button" className="btn btn-ghost btn-sm" onClick={resetFilter}>
                   Reset filter
@@ -774,12 +962,32 @@ export default function ArsipPage() {
             <span className="chip">
               Total: <strong>{filtered.length} arsip</strong>
             </span>
+            {selectedIds.size > 0 ? (
+              <span className="chip chip-accent">
+                Dipilih: <strong>{selectedIds.size}</strong>
+                <button type="button" onClick={() => setSelectedIds(new Set())} aria-label="Bersihkan pilihan">
+                  &times;
+                </button>
+              </span>
+            ) : null}
           </div>
 
           <div className="table-wrap">
             <table>
               <thead>
                 <tr>
+                  {canManage ? (
+                    <th style={{ width: 38 }}>
+                      <input
+                        ref={pilihSemuaRef}
+                        type="checkbox"
+                        className="checkbox"
+                        checked={semuaHalamanTerpilih}
+                        onChange={togglePilihHalaman}
+                        aria-label="Pilih semua arsip di halaman ini"
+                      />
+                    </th>
+                  ) : null}
                   <th>Judul</th>
                   <th>Kode</th>
                   {!folderAktif ? <th>Folder</th> : null}
@@ -792,6 +1000,11 @@ export default function ArsipPage() {
                 {!ready
                   ? Array.from({ length: 5 }).map((_, index) => (
                       <tr key={`skeleton-${index}`}>
+                        {canManage ? (
+                          <td>
+                            <div className="skeleton skeleton-circle" />
+                          </td>
+                        ) : null}
                         <td>
                           <div className="skeleton skeleton-text" style={{ width: "78%" }} />
                           <div className="skeleton skeleton-text" style={{ width: "38%", marginBottom: 0 }} />
@@ -819,6 +1032,17 @@ export default function ArsipPage() {
                       const fItem = data.folders.find((f) => f.id === arsip.folder_id);
                       return (
                         <tr key={arsip.id} className="row-click" onClick={() => setDetailId(arsip.id)}>
+                          {canManage ? (
+                            <td onClick={(event) => event.stopPropagation()}>
+                              <input
+                                type="checkbox"
+                                className="checkbox"
+                                checked={selectedIds.has(arsip.id)}
+                                onChange={() => togglePilih(arsip.id)}
+                                aria-label={`Pilih arsip ${arsip.nomor_arsip}`}
+                              />
+                            </td>
+                          ) : null}
                           <td>
                             <div className="cell-title">{arsip.judul}</div>
                             <div className="cell-sub mono">{arsip.nomor_arsip}</div>
@@ -899,7 +1123,7 @@ export default function ArsipPage() {
                     })}
                 {ready && paged.length === 0 ? (
                   <tr>
-                    <td colSpan={folderAktif ? 5 : 6}>
+                    <td colSpan={(folderAktif ? 5 : 6) + (canManage ? 1 : 0)}>
                       <div className="empty" style={{ padding: "32px 16px" }}>
                         <p style={{ margin: "0 0 10px 0" }}>
                           {folderAktif
@@ -1035,6 +1259,87 @@ export default function ArsipPage() {
                 <p className="sub" style={{ marginTop: 0 }}>
                   {detail.keterangan}
                 </p>
+              </div>
+            ) : null}
+
+            {detail.nomor_berkas ||
+            detail.nomor_item ||
+            detail.indeks ||
+            detail.jumlah_folder ||
+            detail.tingkat_perkembangan ||
+            detail.jumlah_halaman ||
+            detail.sifat_arsip ||
+            detail.lokasi_cabinet ||
+            detail.lokasi_laci ||
+            detail.lokasi_folder ||
+            detail.kurun_waktu ||
+            detail.nomor_boks ? (
+              <div className="drawer-section">
+                <div className="drawer-section-title">Detail Berkas & Lokasi</div>
+                <div className="meta-grid" style={{ marginTop: 0 }}>
+                  {detail.nomor_berkas ? (
+                    <div className="meta-item">
+                      <span>Nomor berkas</span>
+                      <strong>{detail.nomor_berkas}</strong>
+                    </div>
+                  ) : null}
+                  {detail.nomor_item ? (
+                    <div className="meta-item">
+                      <span>No. item arsip</span>
+                      <strong>{detail.nomor_item}</strong>
+                    </div>
+                  ) : null}
+                  {detail.indeks ? (
+                    <div className="meta-item">
+                      <span>Indeks berkas</span>
+                      <strong>{detail.indeks}</strong>
+                    </div>
+                  ) : null}
+                  {detail.jumlah_folder ? (
+                    <div className="meta-item">
+                      <span>Jumlah folder</span>
+                      <strong>{detail.jumlah_folder}</strong>
+                    </div>
+                  ) : null}
+                  {detail.tingkat_perkembangan ? (
+                    <div className="meta-item">
+                      <span>Tingkat perkembangan</span>
+                      <strong>{detail.tingkat_perkembangan}</strong>
+                    </div>
+                  ) : null}
+                  {detail.jumlah_halaman ? (
+                    <div className="meta-item">
+                      <span>Jumlah halaman</span>
+                      <strong>{detail.jumlah_halaman}</strong>
+                    </div>
+                  ) : null}
+                  {detail.sifat_arsip ? (
+                    <div className="meta-item">
+                      <span>Sifat arsip</span>
+                      <strong>{detail.sifat_arsip}</strong>
+                    </div>
+                  ) : null}
+                  {detail.kurun_waktu ? (
+                    <div className="meta-item">
+                      <span>Kurun waktu</span>
+                      <strong>{detail.kurun_waktu}</strong>
+                    </div>
+                  ) : null}
+                  {detail.lokasi_cabinet || detail.lokasi_laci || detail.lokasi_folder ? (
+                    <div className="meta-item">
+                      <span>Lokasi</span>
+                      <strong>
+                        {[detail.lokasi_cabinet, detail.lokasi_laci, detail.lokasi_folder].filter(Boolean).join(" / ")}
+                      </strong>
+                    </div>
+                  ) : null}
+                  {detail.nomor_boks ? (
+                    <div className="meta-item">
+                      <span>Nomor boks</span>
+                      <strong>{detail.nomor_boks}</strong>
+                    </div>
+                  ) : null}
+                </div>
               </div>
             ) : null}
 
@@ -1295,6 +1600,136 @@ export default function ArsipPage() {
                 placeholder="Catatan tambahan mengenai arsip"
               />
             </div>
+
+            <details className="form-details field-full">
+              <summary>Detail Berkas & Lokasi (opsional)</summary>
+              <div className="form-grid" style={{ marginTop: 12 }}>
+                <div className="field">
+                  <label htmlFor="nomor-berkas">Nomor berkas</label>
+                  <input
+                    id="nomor-berkas"
+                    className="input"
+                    value={form.nomor_berkas}
+                    onChange={(event) => setForm({ ...form, nomor_berkas: event.target.value })}
+                    placeholder="Contoh: B-001/2026"
+                  />
+                </div>
+                <div className="field">
+                  <label htmlFor="nomor-item">No. item arsip</label>
+                  <input
+                    id="nomor-item"
+                    className="input"
+                    value={form.nomor_item}
+                    onChange={(event) => setForm({ ...form, nomor_item: event.target.value })}
+                    placeholder="Contoh: 1"
+                  />
+                </div>
+                <div className="field field-full">
+                  <label htmlFor="indeks-berkas">Indeks berkas</label>
+                  <input
+                    id="indeks-berkas"
+                    className="input"
+                    value={form.indeks}
+                    onChange={(event) => setForm({ ...form, indeks: event.target.value })}
+                    placeholder="Ringkasan isi berkas"
+                  />
+                </div>
+                <div className="field">
+                  <label htmlFor="jumlah-folder">Jumlah folder</label>
+                  <input
+                    id="jumlah-folder"
+                    type="number"
+                    min={0}
+                    className="input"
+                    value={form.jumlah_folder}
+                    onChange={(event) => setForm({ ...form, jumlah_folder: event.target.value })}
+                    placeholder="0"
+                  />
+                </div>
+                <div className="field">
+                  <label htmlFor="jumlah-halaman">Jumlah halaman</label>
+                  <input
+                    id="jumlah-halaman"
+                    type="number"
+                    min={0}
+                    className="input"
+                    value={form.jumlah_halaman}
+                    onChange={(event) => setForm({ ...form, jumlah_halaman: event.target.value })}
+                    placeholder="0"
+                  />
+                </div>
+                <div className="field">
+                  <label htmlFor="tingkat-perkembangan">Tingkat perkembangan</label>
+                  <input
+                    id="tingkat-perkembangan"
+                    className="input"
+                    value={form.tingkat_perkembangan}
+                    onChange={(event) => setForm({ ...form, tingkat_perkembangan: event.target.value })}
+                    placeholder="Asli / Salinan / Tembusan"
+                  />
+                </div>
+                <div className="field">
+                  <label htmlFor="sifat-arsip">Sifat arsip</label>
+                  <input
+                    id="sifat-arsip"
+                    className="input"
+                    value={form.sifat_arsip}
+                    onChange={(event) => setForm({ ...form, sifat_arsip: event.target.value })}
+                    placeholder="Biasa / Terbatas / Rahasia"
+                  />
+                </div>
+                <div className="field">
+                  <label htmlFor="lokasi-cabinet">No. filling cabinet</label>
+                  <input
+                    id="lokasi-cabinet"
+                    className="input"
+                    value={form.lokasi_cabinet}
+                    onChange={(event) => setForm({ ...form, lokasi_cabinet: event.target.value })}
+                    placeholder="Contoh: FC-01"
+                  />
+                </div>
+                <div className="field">
+                  <label htmlFor="lokasi-laci">No. laci</label>
+                  <input
+                    id="lokasi-laci"
+                    className="input"
+                    value={form.lokasi_laci}
+                    onChange={(event) => setForm({ ...form, lokasi_laci: event.target.value })}
+                    placeholder="Contoh: 2"
+                  />
+                </div>
+                <div className="field">
+                  <label htmlFor="lokasi-folder">No. folder</label>
+                  <input
+                    id="lokasi-folder"
+                    className="input"
+                    value={form.lokasi_folder}
+                    onChange={(event) => setForm({ ...form, lokasi_folder: event.target.value })}
+                    placeholder="Contoh: 12"
+                  />
+                </div>
+                <div className="field">
+                  <label htmlFor="kurun-waktu">Kurun waktu</label>
+                  <input
+                    id="kurun-waktu"
+                    className="input"
+                    value={form.kurun_waktu}
+                    onChange={(event) => setForm({ ...form, kurun_waktu: event.target.value })}
+                    placeholder="Contoh: 2024-2026"
+                  />
+                </div>
+                <div className="field">
+                  <label htmlFor="nomor-boks">Nomor boks</label>
+                  <input
+                    id="nomor-boks"
+                    className="input"
+                    value={form.nomor_boks}
+                    onChange={(event) => setForm({ ...form, nomor_boks: event.target.value })}
+                    placeholder="Contoh: 07"
+                  />
+                </div>
+              </div>
+            </details>
           </div>
           <div className="form-note">
             Berkas yang dipilih hanya dicatat metadatanya. Penyimpanan berkas asli menunggu integrasi storage.
@@ -1329,6 +1764,76 @@ export default function ArsipPage() {
         <p className="sub">
           Hapus <strong>{hapus?.nomor_arsip}</strong> - {hapus?.judul}?
         </p>
+      </Modal>
+
+      {/* MODAL EKSPOR */}
+      <Modal
+        open={eksporOpen}
+        onClose={() => setEksporOpen(false)}
+        title="Ekspor Daftar Arsip"
+        subtitle="Pilih jenis laporan dan format berkas. Data mengikuti arsip yang dipilih atau hasil filter saat ini."
+        width={720}
+        footer={
+          <>
+            <button type="button" className="btn btn-ghost" onClick={() => setEksporOpen(false)}>
+              Batal
+            </button>
+            <TombolMemuat
+              type="button"
+              className="btn"
+              onClick={unduhEkspor}
+              loading={mengekspor}
+              loadingText="Menyiapkan..."
+              disabled={jumlahEkspor === 0}
+            >
+              <Icon name="download" size={15} /> Unduh
+            </TombolMemuat>
+          </>
+        }
+      >
+        <div className="pilihan-grid">
+          {PILIHAN_EKSPOR.map((pilihan) => (
+            <label
+              key={pilihan.value}
+              className={`pilihan-card ${jenisEkspor === pilihan.value ? "aktif" : ""}`}
+            >
+              <input
+                type="radio"
+                name="jenis-ekspor"
+                value={pilihan.value}
+                checked={jenisEkspor === pilihan.value}
+                onChange={() => setJenisEkspor(pilihan.value)}
+              />
+              <span className="pilihan-body">
+                <strong>{pilihan.label}</strong>
+                <span>{pilihan.deskripsi}</span>
+              </span>
+            </label>
+          ))}
+        </div>
+
+        <div className="ekspor-label">Format berkas</div>
+        <div className="pilihan-format">
+          {FORMAT_PILIHAN.map((format) => (
+            <button
+              key={format.value}
+              type="button"
+              className={`btn btn-sm ${formatEkspor === format.value ? "" : "btn-ghost"}`}
+              onClick={() => setFormatEkspor(format.value)}
+              aria-pressed={formatEkspor === format.value}
+            >
+              {format.label}
+            </button>
+          ))}
+        </div>
+
+        <div className={`ekspor-info ${jumlahEkspor === 0 ? "kosong" : ""}`}>
+          {jumlahEkspor === 0
+            ? "Tidak ada data untuk diekspor."
+            : `Akan mengekspor ${jumlahEkspor} baris ${
+                selectedIds.size > 0 ? "dari arsip yang dipilih" : "sesuai filter saat ini"
+              }.`}
+        </div>
       </Modal>
     </>
   );

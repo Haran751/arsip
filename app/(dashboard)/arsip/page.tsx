@@ -187,6 +187,9 @@ export default function ArsipPage() {
     file_type: "",
   });
   const [formError, setFormError] = useState("");
+  const [kodeOpen, setKodeOpen] = useState(false);
+  const [kodeQuery, setKodeQuery] = useState("");
+  const kodeComboRef = useRef<HTMLDivElement>(null);
   const paramsHandled = useRef(false);
 
   // Pilihan baris & ekspor
@@ -202,6 +205,19 @@ export default function ArsipPage() {
     () => (folderAktifId ? data.folders.find((f) => f.id === folderAktifId) ?? null : null),
     [data.folders, folderAktifId],
   );
+
+  // Kode arsip bisa dicari dengan mengetik kode atau nama.
+  useEffect(() => {
+    if (!kodeOpen) return;
+    const tutupDiLuar = (event: MouseEvent) => {
+      if (kodeComboRef.current?.contains(event.target as Node)) return;
+      setKodeOpen(false);
+      const terpilih = data.kodeArsip.find((item) => item.kode === form.kode);
+      setKodeQuery(terpilih ? `${terpilih.kode} - ${terpilih.nama}` : "");
+    };
+    document.addEventListener("mousedown", tutupDiLuar);
+    return () => document.removeEventListener("mousedown", tutupDiLuar);
+  }, [kodeOpen, data.kodeArsip, form.kode]);
 
   // Hitung jumlah arsip per folder
   const jumlahArsipPerFolder = useMemo(() => {
@@ -298,6 +314,24 @@ export default function ArsipPage() {
 
   const detail = detailId ? (data.arsip.find((arsip) => arsip.id === detailId) ?? null) : null;
   const detailFolder = detail ? data.folders.find((f) => f.id === detail.folder_id) : null;
+  const kodeTerpilih = data.kodeArsip.find((item) => item.kode === form.kode) ?? null;
+
+  // Daftar kode yang cocok dengan kata kunci (kode atau nama).
+  const kodeTersaring = useMemo(() => {
+    const kata = kodeQuery.trim().toLowerCase();
+    const labelTerpilih = kodeTerpilih ? `${kodeTerpilih.kode} - ${kodeTerpilih.nama}` : "";
+    if (!kata || kodeQuery === labelTerpilih) return data.kodeArsip;
+    return data.kodeArsip.filter(
+      (item) =>
+        item.kode.toLowerCase().includes(kata) || item.nama.toLowerCase().includes(kata),
+    );
+  }, [kodeQuery, data.kodeArsip, kodeTerpilih]);
+
+  const pilihKode = (item: (typeof data.kodeArsip)[number]) => {
+    setForm((current) => ({ ...current, kode: item.kode }));
+    setKodeQuery(`${item.kode} - ${item.nama}`);
+    setKodeOpen(false);
+  };
 
   // --- AKSI FOLDER ---
   const bukaTambahFolder = () => {
@@ -373,11 +407,12 @@ export default function ArsipPage() {
     }
     const tanggal = today();
     const targetFolderId = folderAktifId ?? data.folders[0]?.id ?? "";
+    const kodeAwal = data.kodeArsip[0];
     setEditing(null);
     setForm({
       nomor_arsip: nextNomorArsip(tanggal),
       judul: "",
-      kode: data.kodeArsip[0]?.kode ?? "",
+      kode: kodeAwal?.kode ?? "",
       folder_id: targetFolderId,
       tanggal_arsip: tanggal,
       keterangan: "",
@@ -385,6 +420,8 @@ export default function ArsipPage() {
       file_name: "",
       file_type: "",
     });
+    setKodeOpen(false);
+    setKodeQuery(kodeAwal ? `${kodeAwal.kode} - ${kodeAwal.nama}` : "");
     setFormError("");
     setFormOpen(true);
   };
@@ -426,6 +463,9 @@ export default function ArsipPage() {
 
   const bukaUbah = (arsip: Arsip) => {
     setEditing(arsip);
+    const kodeArsip = data.kodeArsip.find((item) => item.kode === arsip.kode);
+    setKodeOpen(false);
+    setKodeQuery(kodeArsip ? `${kodeArsip.kode} - ${kodeArsip.nama}` : "");
     setForm({
       nomor_arsip: arsip.nomor_arsip,
       judul: arsip.judul,
@@ -456,6 +496,10 @@ export default function ArsipPage() {
 
   const simpan = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
+    if (!form.kode) {
+      setFormError("Kode arsip wajib dipilih.");
+      return;
+    }
     const input: ArsipInput = {
       nomor_arsip: form.nomor_arsip,
       judul: form.judul,
@@ -849,22 +893,45 @@ export default function ArsipPage() {
               <option value="Inaktif">Inaktif</option>
               <option value="Permanen">Permanen</option>
             </select>
-            <select
-              className="select"
-              value={kode}
-              onChange={(event) => {
-                setKode(event.target.value);
-                setPage(1);
-              }}
-              aria-label="Filter kode arsip"
-            >
-              <option value="">Semua kode</option>
-              {data.kodeArsip.map((item) => (
-                <option key={item.id} value={item.kode}>
-                  {item.kode} - {item.nama}
-                </option>
-              ))}
-            </select>
+            <details className="filter-dropdown">
+              <summary className="filter-dropdown-trigger" aria-label="Filter kode arsip">
+                <span className="filter-dropdown-value">{kode || "Semua kode"}</span>
+                <Icon name="chevron" size={14} className="filter-dropdown-caret" />
+              </summary>
+              <div className="row-menu-panel filter-dropdown-panel">
+                <button
+                  type="button"
+                  className={!kode ? "active" : undefined}
+                  onClick={(event) => {
+                    event.currentTarget.closest("details")?.removeAttribute("open");
+                    setKode("");
+                    setPage(1);
+                  }}
+                >
+                  <span className="filter-dropdown-option">
+                    <strong>Semua kode</strong>
+                  </span>
+                </button>
+                {data.kodeArsip.map((item) => (
+                  <button
+                    key={item.id}
+                    type="button"
+                    className={kode === item.kode ? "active" : undefined}
+                    onClick={(event) => {
+                      event.currentTarget.closest("details")?.removeAttribute("open");
+                      setKode(item.kode);
+                      setPage(1);
+                    }}
+                  >
+                    <span className="filter-dropdown-option">
+                      <strong className="mono">{item.kode}</strong>
+                      <span>{item.nama}</span>
+                    </span>
+                    {kode === item.kode ? <Icon name="check" size={14} /> : null}
+                  </button>
+                ))}
+              </div>
+            </details>
             <select
               className="select"
               value={pengguna}
@@ -1546,20 +1613,71 @@ export default function ArsipPage() {
             </div>
             <div className="field">
               <label htmlFor="kode-arsip">Kode arsip</label>
-              <select
-                id="kode-arsip"
-                className="select"
-                value={form.kode}
-                onChange={(event) => setForm({ ...form, kode: event.target.value })}
-                required
-              >
-                <option value="">Pilih kode</option>
-                {data.kodeArsip.map((item) => (
-                  <option key={item.id} value={item.kode}>
-                    {item.kode} - {item.nama}
-                  </option>
-                ))}
-              </select>
+              <div className="kode-combo" ref={kodeComboRef}>
+                <input
+                  id="kode-arsip"
+                  type="text"
+                  className="input kode-combo-input"
+                  role="combobox"
+                  aria-expanded={kodeOpen}
+                  aria-controls="kode-arsip-opsi"
+                  aria-autocomplete="list"
+                  autoComplete="off"
+                  placeholder="Ketik kode atau nama..."
+                  value={kodeQuery}
+                  onFocus={() => setKodeOpen(true)}
+                  onChange={(event) => {
+                    const nilai = event.target.value;
+                    setKodeQuery(nilai);
+                    setKodeOpen(true);
+                    setForm((current) => {
+                      if (!current.kode) return current;
+                      const terpilih = data.kodeArsip.find((item) => item.kode === current.kode);
+                      const label = terpilih ? `${terpilih.kode} - ${terpilih.nama}` : "";
+                      return nilai === label ? current : { ...current, kode: "" };
+                    });
+                  }}
+                  onKeyDown={(event) => {
+                    if (event.key === "Escape") {
+                      setKodeOpen(false);
+                      return;
+                    }
+                    if (event.key === "Enter" && kodeOpen && kodeTersaring.length > 0) {
+                      event.preventDefault();
+                      pilihKode(kodeTersaring[0]);
+                    }
+                  }}
+                />
+                <Icon name="search" size={15} className="kode-combo-icon" />
+                {kodeOpen ? (
+                  <div
+                    id="kode-arsip-opsi"
+                    role="listbox"
+                    className="row-menu-panel filter-dropdown-panel kode-combo-panel"
+                  >
+                    {kodeTersaring.length === 0 ? (
+                      <p className="kode-combo-kosong">Kode tidak ditemukan.</p>
+                    ) : (
+                      kodeTersaring.map((item) => (
+                        <button
+                          key={item.id}
+                          type="button"
+                          role="option"
+                          aria-selected={form.kode === item.kode}
+                          className={form.kode === item.kode ? "active" : undefined}
+                          onClick={() => pilihKode(item)}
+                        >
+                          <span className="filter-dropdown-option">
+                            <strong className="mono">{item.kode}</strong>
+                            <span>{item.nama}</span>
+                          </span>
+                          {form.kode === item.kode ? <Icon name="check" size={14} /> : null}
+                        </button>
+                      ))
+                    )}
+                  </div>
+                ) : null}
+              </div>
             </div>
             <div className="field">
               <label htmlFor="berkas-arsip">Berkas arsip</label>

@@ -986,6 +986,7 @@ kbd {
   gap: 9px;
   flex-wrap: wrap;
   margin-bottom: 16px;
+  min-width: 0;
 }
 
 .input,
@@ -999,7 +1000,36 @@ kbd {
   font-size: 12.5px;
   font-family: inherit;
   outline: none;
+  max-width: 100%;
+  min-width: 0;
   transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+/* Tampilan select dibuat eksplisit supaya teks pilihan selalu terlihat. */
+.select {
+  appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  padding-right: 34px;
+  color: var(--foreground);
+  -webkit-text-fill-color: var(--foreground);
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%235c7a75' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 12px center;
+  background-size: 12px;
+  cursor: pointer;
+}
+
+.select option {
+  color: var(--foreground);
+  background-color: #ffffff;
+}
+
+/* Select tidak boleh melebar mengikuti teks opsi terpanjang (bikin scroll horizontal). */
+.toolbar .select {
+  flex: 0 1 160px;
+  min-width: 0;
+  max-width: 100%;
 }
 
 .input:focus,
@@ -1029,6 +1059,7 @@ input[type="date"].input {
 .select:disabled {
   background: #f3f7f5;
   color: var(--muted);
+  -webkit-text-fill-color: var(--muted);
   cursor: not-allowed;
 }
 
@@ -1347,10 +1378,12 @@ input[type="date"].input {
   background: #ffffff;
   font-size: 11.5px;
   color: var(--muted);
+  max-width: 100%;
 }
 
 .chip strong {
   color: var(--foreground);
+  overflow-wrap: anywhere;
 }
 
 .chip button {
@@ -1433,6 +1466,7 @@ input[type="date"].input {
 
 .table-wrap {
   overflow-x: auto;
+  max-width: 100%;
   border-radius: 16px;
   border: 1px solid var(--border);
   background: #ffffff;
@@ -1462,6 +1496,13 @@ td {
   padding: 14px;
   border-bottom: 1px solid rgba(15, 143, 87, 0.07);
   vertical-align: middle;
+  overflow-wrap: break-word;
+}
+
+/* Badge panjang (mis. nama folder) dibungkus agar tabel tidak melebar. */
+.table-wrap td .badge {
+  max-width: 100%;
+  white-space: normal;
 }
 
 tr:last-child td {
@@ -1507,6 +1548,11 @@ tbody tr:hover td {
   display: flex;
   align-items: center;
   gap: 9px;
+  min-width: 0;
+}
+
+.user-cell > div {
+  min-width: 0;
 }
 
 .table-foot {
@@ -1595,6 +1641,146 @@ tbody tr:hover td {
 
 .row-menu-panel button.danger {
   color: #b83a3a;
+}
+
+/* ---------- Dropdown filter kode (kustom) ---------- */
+
+.filter-dropdown {
+  position: relative;
+  min-width: 0;
+}
+
+.toolbar .filter-dropdown {
+  flex: 0 1 200px;
+}
+
+.filter-dropdown-trigger {
+  list-style: none;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  height: 40px;
+  padding: 0 12px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: #ffffff;
+  color: var(--foreground);
+  font-size: 12.5px;
+  cursor: pointer;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.filter-dropdown-trigger::-webkit-details-marker {
+  display: none;
+}
+
+.filter-dropdown-trigger:hover,
+.filter-dropdown[open] .filter-dropdown-trigger {
+  border-color: rgba(31, 191, 117, 0.55);
+}
+
+.filter-dropdown[open] .filter-dropdown-trigger {
+  box-shadow: 0 0 0 4px rgba(31, 191, 117, 0.13);
+}
+
+.filter-dropdown-value {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 600;
+}
+
+.filter-dropdown-caret {
+  flex: 0 0 auto;
+  color: var(--muted);
+  transform: rotate(90deg);
+  transition: transform 0.15s ease;
+}
+
+.filter-dropdown[open] .filter-dropdown-caret {
+  transform: rotate(-90deg);
+}
+
+.filter-dropdown-panel {
+  left: 0;
+  right: auto;
+  min-width: min(280px, calc(100vw - 48px));
+  max-width: min(360px, calc(100vw - 48px));
+  max-height: 300px;
+  overflow-y: auto;
+}
+
+.filter-dropdown-panel button {
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.filter-dropdown-option {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+}
+
+.filter-dropdown-option strong {
+  font-size: 12px;
+  color: var(--foreground);
+}
+
+.filter-dropdown-option span {
+  font-size: 11px;
+  color: var(--muted);
+  line-height: 1.4;
+}
+
+.filter-dropdown-panel button.active {
+  background: var(--tint);
+}
+
+.filter-dropdown-panel button.active strong {
+  color: var(--primary-dark);
+}
+
+/* ---------- Combobox kode arsip (bisa diketik) ---------- */
+
+.kode-combo {
+  position: relative;
+  width: 100%;
+}
+
+.kode-combo-input {
+  padding-right: 36px;
+  cursor: text;
+}
+
+.kode-combo-icon {
+  position: absolute;
+  top: 50%;
+  right: 12px;
+  transform: translateY(-50%);
+  color: var(--muted);
+  pointer-events: none;
+}
+
+.kode-combo-panel {
+  left: 0;
+  right: auto;
+  min-width: 100%;
+  width: max-content;
+  max-width: min(420px, calc(100vw - 48px));
+  max-height: 260px;
+  overflow-y: auto;
+}
+
+.kode-combo-kosong {
+  margin: 0;
+  padding: 10px;
+  font-size: 12px;
+  color: var(--muted);
+  text-align: center;
 }
 
 /* ---------- Timeline ---------- */
@@ -2712,6 +2898,10 @@ html[data-reduce-motion="true"] *::after {
     gap: 20px;
   }
 
+  .table-wrap th {
+    white-space: normal;
+  }
+
   .banner {
     padding: 24px;
     border-radius: 22px;
@@ -2887,6 +3077,11 @@ html[data-reduce-motion="true"] *::after {
   .toolbar .input,
   .toolbar .select {
     flex: 1;
+    min-width: 130px;
+  }
+
+  .toolbar .filter-dropdown {
+    flex: 1 1 150px;
     min-width: 130px;
   }
 

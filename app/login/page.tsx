@@ -29,7 +29,7 @@ export default async function LoginPage({
             </div>
             <h2>Arsip digital yang rapi, aman, dan mudah ditelusuri.</h2>
             <p>
-              Kelola arsip kantor, atur masa retensi, dan awasi pemusnahan dengan jejak audit yang jelas. Semua teks dan alur
+              Kelola arsip kantor, atur masa retensi, dan awasi penyusutan dengan jejak audit yang jelas. Semua teks dan alur
               dirancang untuk kebutuhan administrasi sehari-hari.
             </p>
             <div className="login-features">

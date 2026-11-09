@@ -26,8 +26,8 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
       list.push({
         id: "due",
         title: `${dueArsip.length} arsip jatuh tempo`,
-        desc: "Arsip inaktif siap ditinjau untuk pemusnahan.",
-        href: "/pemusnahan",
+        desc: "Arsip inaktif siap ditinjau untuk penyusutan.",
+        href: "/penyusutan",
         tone: "warn",
       });
     }
@@ -35,8 +35,8 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
       list.push({
         id: "usulan",
         title: `${stats.usulanDiajukan} usulan menunggu`,
-        desc: "Usulan pemusnahan menunggu keputusan Admin.",
-        href: "/pemusnahan",
+        desc: "Usulan penyusutan menunggu keputusan Admin.",
+        href: "/penyusutan",
         tone: "info",
       });
     }

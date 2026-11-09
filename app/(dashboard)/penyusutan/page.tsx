@@ -7,7 +7,7 @@ import TombolMemuat from "@/components/loading-button";
 import { formatTanggal, type Usulan } from "@/lib/types";
 import { useData } from "@/lib/data-store";
 
-export default function PemusnahanPage() {
+export default function PenyusutanPage() {
   const { data, dueArsip, stats, canManage, isAdmin, addUsulan, decideUsulan, toast } = useData();
   const [formOpen, setFormOpen] = useState(false);
   const [detailId, setDetailId] = useState<string | null>(null);
@@ -93,7 +93,7 @@ export default function PemusnahanPage() {
           <div className="stat-value" style={{ color: "#0b7a4b" }}>
             {stats.usulanDisetujui}
           </div>
-          <div className="stat-note">siap dimusnahkan</div>
+          <div className="stat-note">siap disusutkan</div>
         </div>
         <div className="card stat-card">
           <div className="stat-label">Total Item</div>
@@ -105,7 +105,7 @@ export default function PemusnahanPage() {
       <div className="note note-warn">
         <span className="note-mark" />
         <span>
-          Persetujuan pemusnahan hanya dapat dilakukan oleh <strong>Admin</strong>. Tidak ada penghapusan otomatis;
+          Persetujuan penyusutan hanya dapat dilakukan oleh <strong>Admin</strong>. Tidak ada penghapusan otomatis;
           arsip tetap tersimpan sampai usulan disetujui.
         </span>
       </div>
@@ -113,7 +113,7 @@ export default function PemusnahanPage() {
       <div className="card">
         <div className="section-head">
           <div>
-            <h2 className="h2">Usulan Pemusnahan</h2>
+            <h2 className="h2">Usulan Penyusutan</h2>
             <p className="sub">Daftar usulan beserta status persetujuannya.</p>
           </div>
           <button
@@ -123,7 +123,7 @@ export default function PemusnahanPage() {
             disabled={!canManage || eligible.length === 0}
             title={!canManage ? "Pimpinan hanya dapat melihat" : eligible.length === 0 ? "Tidak ada arsip yang dapat diusulkan" : ""}
           >
-            + Ajukan Pemusnahan
+            + Ajukan Penyusutan
           </button>
         </div>
         <div className="table-wrap">
@@ -173,7 +173,7 @@ export default function PemusnahanPage() {
               {data.usulan.length === 0 ? (
                 <tr>
                   <td colSpan={7}>
-                    <div className="empty">Belum ada usulan pemusnahan.</div>
+                    <div className="empty">Belum ada usulan penyusutan.</div>
                   </td>
                 </tr>
               ) : null}
@@ -240,7 +240,7 @@ export default function PemusnahanPage() {
       <Modal
         open={formOpen}
         onClose={() => setFormOpen(false)}
-        title="Ajukan Pemusnahan"
+        title="Ajukan Penyusutan"
         subtitle="Pilih arsip inaktif yang akan dimasukkan ke usulan."
         width={700}
         footer={
@@ -296,7 +296,7 @@ export default function PemusnahanPage() {
             className="input"
             value={catatan}
             onChange={(event) => setCatatan(event.target.value)}
-            placeholder="Alasan atau dasar pengajuan pemusnahan"
+            placeholder="Alasan atau dasar pengajuan penyusutan"
           />
         </div>
       </Modal>
@@ -304,7 +304,7 @@ export default function PemusnahanPage() {
       <Modal
         open={Boolean(detail)}
         onClose={() => setDetailId(null)}
-        title="Detail Usulan Pemusnahan"
+        title="Detail Usulan Penyusutan"
         subtitle={detail?.nomor}
         width={700}
         footer={

@@ -430,7 +430,7 @@ async function perbaruiRetensiArsip(tx: Prisma.TransactionClient, kode: { id: st
 export async function tambahUsulanAksi(itemIds: string[], catatan?: string): Promise<ActionResult> {
   try {
     const aktor = await sesiPengguna();
-    if (!bolehKelola(aktor)) return { ok: false, message: "Hanya Admin dan Operator yang dapat mengajukan pemusnahan." };
+    if (!bolehKelola(aktor)) return { ok: false, message: "Hanya Admin dan Operator yang dapat mengajukan penyusutan." };
     if (!itemIds.length) return { ok: false, message: "Pilih arsip yang akan diusulkan." };
 
     const arsip = await prisma.arsip.findMany({
@@ -456,14 +456,14 @@ export async function tambahUsulanAksi(itemIds: string[], catatan?: string): Pro
           item: { create: arsip.map((baris) => ({ arsip_id: baris.id })) },
         },
       });
-      await tulisLog(tx, aktor, "Ajukan Pemusnahan", `Mengajukan usulan ${nomor} untuk ${arsip.length} arsip.`, "buat", {
+      await tulisLog(tx, aktor, "Ajukan Penyusutan", `Mengajukan usulan ${nomor} untuk ${arsip.length} arsip.`, "buat", {
         type: "usulan_pemusnahan",
         id: dibuat.id,
       });
       return dibuat;
     });
 
-    revalidatePath("/pemusnahan");
+    revalidatePath("/penyusutan");
     revalidatePath("/log");
     return { ok: true, message: `Usulan ${usulan.nomor} dibuat.` };
   } catch (error) {
@@ -489,13 +489,13 @@ export async function putuskanUsulanAksi(id: string, status: "Disetujui" | "Dito
           diputuskan_pada: new Date(),
         },
       });
-      await tulisLog(tx, aktor, status === "Disetujui" ? "Setujui Pemusnahan" : "Tolak Pemusnahan", `Usulan ${usulan.nomor} ${status.toLowerCase()}.`, "setuju", {
+      await tulisLog(tx, aktor, status === "Disetujui" ? "Setujui Penyusutan" : "Tolak Penyusutan", `Usulan ${usulan.nomor} ${status.toLowerCase()}.`, "setuju", {
         type: "usulan_pemusnahan",
         id,
       });
     });
 
-    revalidatePath("/pemusnahan");
+    revalidatePath("/penyusutan");
     revalidatePath("/log");
     return { ok: true, message: `Usulan ${status.toLowerCase()}.` };
   } catch (error) {

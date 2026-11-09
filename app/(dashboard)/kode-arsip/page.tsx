@@ -255,7 +255,7 @@ export default function KodeArsipPage() {
         <div className="card stat-card">
           <div className="stat-label">Nasib Musnah</div>
           <div className="stat-value">{data.kodeArsip.filter((item) => item.nasib_akhir === "Musnah").length}</div>
-          <div className="stat-note">dapat diusulkan pemusnahan</div>
+          <div className="stat-note">dapat diusulkan penyusutan</div>
         </div>
         <div className="card stat-card">
           <div className="stat-label">Nasib Permanen</div>

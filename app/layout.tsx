@@ -4,7 +4,7 @@ import "./globals.css";
 
 export const metadata: Metadata = {
   title: "E-Arsip - Sistem Arsip Digital",
-  description: "Aplikasi pengelolaan arsip digital dengan retensi, pemusnahan, dan log aktivitas.",
+  description: "Aplikasi pengelolaan arsip digital dengan retensi, penyusutan, dan log aktivitas.",
 };
 
 export const viewport: Viewport = {

@@ -69,7 +69,7 @@ export default function BerandaPage() {
               kerja lebih ringan.
             </h2>
             <p className="banner-sub">
-              Kelola arsip digital, atur retensi, dan awasi pemusnahan dalam satu tempat. Perubahan pada data arsip
+              Kelola arsip digital, atur retensi, dan awasi penyusutan dalam satu tempat. Perubahan pada data arsip
               tersimpan otomatis di perangkat ini.
             </p>
           </div>
@@ -269,7 +269,7 @@ export default function BerandaPage() {
               <h2 className="h2">Menjelang Retensi</h2>
               <p className="sub">Arsip yang perlu ditinjau dalam waktu dekat.</p>
             </div>
-            <Link href="/pemusnahan" className="btn btn-ghost btn-sm">
+            <Link href="/penyusutan" className="btn btn-ghost btn-sm">
               Tinjau
             </Link>
           </div>

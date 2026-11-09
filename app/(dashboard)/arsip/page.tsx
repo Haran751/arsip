@@ -1307,7 +1307,7 @@ export default function ArsipPage() {
         open={Boolean(hapus)}
         onClose={() => setHapus(null)}
         title="Hapus Arsip"
-        subtitle="Tindakan ini juga menghapus arsip dari usulan pemusnahan yang belum diputuskan."
+        subtitle="Tindakan ini juga menghapus arsip dari usulan penyusutan yang belum diputuskan."
         width={460}
         footer={
           <>

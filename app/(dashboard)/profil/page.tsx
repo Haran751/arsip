@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useMemo, useState } from "react";
 import Modal from "@/components/modal";
+import TombolMemuat from "@/components/loading-button";
 import { formatWaktu, inisial } from "@/lib/types";
 import { useData } from "@/lib/data-store";
 
@@ -11,6 +12,7 @@ export default function ProfilPage() {
   const [editOpen, setEditOpen] = useState(false);
   const [form, setForm] = useState({ nama: currentUser.nama, email: currentUser.email });
   const [formError, setFormError] = useState("");
+  const [menyimpan, setMenyimpan] = useState(false);
 
   const aktivitas = useMemo(
     () =>
@@ -29,13 +31,18 @@ export default function ProfilPage() {
 
   const simpan = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    const hasil = await updateProfile({ nama: form.nama, email: form.email });
-    if (!hasil.ok) {
-      setFormError(hasil.message ?? "Gagal memperbarui profil.");
-      return;
+    setMenyimpan(true);
+    try {
+      const hasil = await updateProfile({ nama: form.nama, email: form.email });
+      if (!hasil.ok) {
+        setFormError(hasil.message ?? "Gagal memperbarui profil.");
+        return;
+      }
+      toast(hasil.message ?? "Profil diperbarui.");
+      setEditOpen(false);
+    } finally {
+      setMenyimpan(false);
     }
-    toast(hasil.message ?? "Profil diperbarui.");
-    setEditOpen(false);
   };
 
   return (
@@ -162,9 +169,9 @@ export default function ProfilPage() {
             <button type="button" className="btn btn-ghost" onClick={() => setEditOpen(false)}>
               Batal
             </button>
-            <button type="submit" form="form-profil" className="btn">
+            <TombolMemuat type="submit" form="form-profil" className="btn" loading={menyimpan} loadingText="Menyimpan...">
               Simpan Perubahan
-            </button>
+            </TombolMemuat>
           </>
         }
       >

@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import Modal from "@/components/modal";
+import TombolMemuat from "@/components/loading-button";
 import { formatWaktu, inisial, type AppUser, type Role, type UserInput } from "@/lib/types";
 import { useData } from "@/lib/data-store";
 
@@ -31,6 +32,8 @@ export default function PenggunaPage() {
     aktif: true,
   });
   const [formError, setFormError] = useState("");
+  const [menyimpan, setMenyimpan] = useState(false);
+  const [mereset, setMereset] = useState(false);
 
   const filtered = useMemo(() => {
     const kata = cari.trim().toLowerCase();
@@ -65,20 +68,30 @@ export default function PenggunaPage() {
       role: form.role,
       aktif: form.aktif,
     };
-    const hasil = await saveUser(input, editing?.id);
-    if (!hasil.ok) {
-      setFormError(hasil.message ?? "Gagal menyimpan pengguna.");
-      return;
+    setMenyimpan(true);
+    try {
+      const hasil = await saveUser(input, editing?.id);
+      if (!hasil.ok) {
+        setFormError(hasil.message ?? "Gagal menyimpan pengguna.");
+        return;
+      }
+      toast(hasil.message ?? "Pengguna disimpan.");
+      setFormOpen(false);
+    } finally {
+      setMenyimpan(false);
     }
-    toast(hasil.message ?? "Pengguna disimpan.");
-    setFormOpen(false);
   };
 
   const reset = async () => {
     if (!resetTarget) return;
-    const hasil = await resetUserPassword(resetTarget.id);
-    toast(hasil.message ?? (hasil.ok ? "Password direset." : "Gagal mereset password."), hasil.ok ? "success" : "error");
-    if (hasil.ok) setResetTarget(null);
+    setMereset(true);
+    try {
+      const hasil = await resetUserPassword(resetTarget.id);
+      toast(hasil.message ?? (hasil.ok ? "Password direset." : "Gagal mereset password."), hasil.ok ? "success" : "error");
+      if (hasil.ok) setResetTarget(null);
+    } finally {
+      setMereset(false);
+    }
   };
 
   return (
@@ -231,9 +244,15 @@ export default function PenggunaPage() {
             <button type="button" className="btn btn-ghost" onClick={() => setFormOpen(false)}>
               Batal
             </button>
-            <button type="submit" form="form-pengguna" className="btn">
+            <TombolMemuat
+              type="submit"
+              form="form-pengguna"
+              className="btn"
+              loading={menyimpan}
+              loadingText="Menyimpan..."
+            >
               {editing ? "Simpan Perubahan" : "Simpan Pengguna"}
-            </button>
+            </TombolMemuat>
           </>
         }
       >
@@ -311,9 +330,9 @@ export default function PenggunaPage() {
             <button type="button" className="btn btn-ghost" onClick={() => setResetTarget(null)}>
               Batal
             </button>
-            <button type="button" className="btn" onClick={reset}>
+            <TombolMemuat type="button" className="btn" onClick={reset} loading={mereset} loadingText="Mereset...">
               Reset Password
-            </button>
+            </TombolMemuat>
           </>
         }
       >

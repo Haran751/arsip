@@ -1,4 +1,5 @@
 import Icon from "@/components/icon";
+import TombolMemuat from "@/components/loading-button";
 import { redirect } from "next/navigation";
 import { ambilPenggunaSesi } from "@/lib/session";
 import { loginAction } from "./actions";
@@ -86,9 +87,9 @@ export default async function LoginPage({
                 required
               />
             </div>
-            <button type="submit" className="btn btn-block" style={{ marginTop: 16 }}>
+            <TombolMemuat type="submit" className="btn btn-block" style={{ marginTop: 16 }} loadingText="Memproses...">
               <Icon name="logout" size={16} /> Masuk
-            </button>
+            </TombolMemuat>
           </form>
         </div>
       </div>

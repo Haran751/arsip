@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import Modal from "@/components/modal";
 import StatusBadge from "@/components/status-badge";
+import TombolMemuat from "@/components/loading-button";
 import { formatTanggal, type Usulan } from "@/lib/types";
 import { useData } from "@/lib/data-store";
 
@@ -13,6 +14,8 @@ export default function PemusnahanPage() {
   const [selected, setSelected] = useState<string[]>([]);
   const [catatan, setCatatan] = useState("");
   const [formError, setFormError] = useState("");
+  const [mengajukan, setMengajukan] = useState(false);
+  const [memutuskan, setMemutuskan] = useState<string | null>(null);
 
   const pendingIds = useMemo(
     () =>
@@ -44,18 +47,28 @@ export default function PemusnahanPage() {
       setFormError("Pilih minimal satu arsip.");
       return;
     }
-    const hasil = await addUsulan(selected, catatan);
-    if (!hasil.ok) {
-      setFormError(hasil.message ?? "Gagal membuat usulan.");
-      return;
+    setMengajukan(true);
+    try {
+      const hasil = await addUsulan(selected, catatan);
+      if (!hasil.ok) {
+        setFormError(hasil.message ?? "Gagal membuat usulan.");
+        return;
+      }
+      toast(hasil.message ?? "Usulan dibuat.");
+      setFormOpen(false);
+    } finally {
+      setMengajukan(false);
     }
-    toast(hasil.message ?? "Usulan dibuat.");
-    setFormOpen(false);
   };
 
   const putuskan = async (usulan: Usulan, status: "Disetujui" | "Ditolak") => {
-    const hasil = await decideUsulan(usulan.id, status);
-    toast(hasil.message ?? "Usulan diputuskan.", hasil.ok ? "success" : "error");
+    setMemutuskan(usulan.id);
+    try {
+      const hasil = await decideUsulan(usulan.id, status);
+      toast(hasil.message ?? "Usulan diputuskan.", hasil.ok ? "success" : "error");
+    } finally {
+      setMemutuskan(null);
+    }
   };
 
   return (
@@ -143,9 +156,15 @@ export default function PemusnahanPage() {
                         Detail
                       </button>
                       {usulan.status === "Diajukan" && isAdmin ? (
-                        <button type="button" className="btn btn-sm" onClick={() => putuskan(usulan, "Disetujui")}>
+                        <TombolMemuat
+                          type="button"
+                          className="btn btn-sm"
+                          onClick={() => putuskan(usulan, "Disetujui")}
+                          loading={memutuskan === usulan.id}
+                          loadingText="Memproses..."
+                        >
                           Setujui
-                        </button>
+                        </TombolMemuat>
                       ) : null}
                     </div>
                   </td>
@@ -229,9 +248,16 @@ export default function PemusnahanPage() {
             <button type="button" className="btn btn-ghost" onClick={() => setFormOpen(false)}>
               Batal
             </button>
-            <button type="button" className="btn" onClick={ajukan} disabled={selected.length === 0}>
+            <TombolMemuat
+              type="button"
+              className="btn"
+              onClick={ajukan}
+              disabled={selected.length === 0}
+              loading={mengajukan}
+              loadingText="Mengajukan..."
+            >
               Ajukan {selected.length} Arsip
-            </button>
+            </TombolMemuat>
           </>
         }
       >
@@ -289,12 +315,24 @@ export default function PemusnahanPage() {
               </button>
               {detail.status === "Diajukan" && isAdmin ? (
                 <>
-                  <button type="button" className="btn btn-danger" onClick={() => putuskan(detail, "Ditolak")}>
+                  <TombolMemuat
+                    type="button"
+                    className="btn btn-danger"
+                    onClick={() => putuskan(detail, "Ditolak")}
+                    loading={memutuskan === detail.id}
+                    loadingText="Memproses..."
+                  >
                     Tolak
-                  </button>
-                  <button type="button" className="btn" onClick={() => putuskan(detail, "Disetujui")}>
+                  </TombolMemuat>
+                  <TombolMemuat
+                    type="button"
+                    className="btn"
+                    onClick={() => putuskan(detail, "Disetujui")}
+                    loading={memutuskan === detail.id}
+                    loadingText="Memproses..."
+                  >
                     Setujui
-                  </button>
+                  </TombolMemuat>
                 </>
               ) : null}
             </>

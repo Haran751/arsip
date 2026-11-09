@@ -5,6 +5,7 @@ import Drawer from "@/components/drawer";
 import Icon from "@/components/icon";
 import Modal from "@/components/modal";
 import StatusBadge from "@/components/status-badge";
+import TombolMemuat from "@/components/loading-button";
 import {
   formatTanggal,
   formatWaktu,
@@ -86,6 +87,10 @@ export default function ArsipPage() {
   const [folderForm, setFolderForm] = useState<FolderFormState>({ nama: "", keterangan: "" });
   const [folderFormError, setFolderFormError] = useState("");
   const [hapusFolder, setHapusFolder] = useState<Folder | null>(null);
+  const [menyimpanFolder, setMenyimpanFolder] = useState(false);
+  const [menghapusFolder, setMenghapusFolder] = useState(false);
+  const [menyimpanArsip, setMenyimpanArsip] = useState(false);
+  const [menghapusArsip, setMenghapusArsip] = useState(false);
 
   // Filter & pencarian arsip
   const [cari, setCari] = useState("");
@@ -208,24 +213,34 @@ export default function ArsipPage() {
       nama: folderForm.nama.trim(),
       keterangan: folderForm.keterangan.trim() || undefined,
     };
-    const hasil = await saveFolder(input, editingFolder?.id);
-    if (!hasil.ok) {
-      setFolderFormError(hasil.message ?? "Gagal menyimpan folder.");
-      return;
+    setMenyimpanFolder(true);
+    try {
+      const hasil = await saveFolder(input, editingFolder?.id);
+      if (!hasil.ok) {
+        setFolderFormError(hasil.message ?? "Gagal menyimpan folder.");
+        return;
+      }
+      toast(hasil.message ?? "Folder disimpan.");
+      setFolderModalOpen(false);
+    } finally {
+      setMenyimpanFolder(false);
     }
-    toast(hasil.message ?? "Folder disimpan.");
-    setFolderModalOpen(false);
   };
 
   const konfirmasiHapusFolder = async () => {
     if (!hapusFolder) return;
-    const hasil = await deleteFolder(hapusFolder.id);
-    toast(hasil.message ?? (hasil.ok ? "Folder dihapus." : "Gagal menghapus folder."), hasil.ok ? "success" : "error");
-    if (hasil.ok) {
-      if (folderAktifId === hapusFolder.id) {
-        setFolderAktifId(null);
+    setMenghapusFolder(true);
+    try {
+      const hasil = await deleteFolder(hapusFolder.id);
+      toast(hasil.message ?? (hasil.ok ? "Folder dihapus." : "Gagal menghapus folder."), hasil.ok ? "success" : "error");
+      if (hasil.ok) {
+        if (folderAktifId === hapusFolder.id) {
+          setFolderAktifId(null);
+        }
+        setHapusFolder(null);
       }
-      setHapusFolder(null);
+    } finally {
+      setMenghapusFolder(false);
     }
   };
 
@@ -332,13 +347,18 @@ export default function ArsipPage() {
       file_size: form.file_size,
       file_type: form.file_type || undefined,
     };
-    const hasil = await saveArsip(input, editing?.id);
-    if (!hasil.ok) {
-      setFormError(hasil.message ?? "Gagal menyimpan arsip.");
-      return;
+    setMenyimpanArsip(true);
+    try {
+      const hasil = await saveArsip(input, editing?.id);
+      if (!hasil.ok) {
+        setFormError(hasil.message ?? "Gagal menyimpan arsip.");
+        return;
+      }
+      toast(hasil.message ?? "Arsip disimpan.");
+      setFormOpen(false);
+    } finally {
+      setMenyimpanArsip(false);
     }
-    toast(hasil.message ?? "Arsip disimpan.");
-    setFormOpen(false);
   };
 
   const unduh = async (arsip: Arsip) => {
@@ -358,11 +378,16 @@ export default function ArsipPage() {
 
   const konfirmasiHapus = async () => {
     if (!hapus) return;
-    const hasil = await deleteArsip(hapus.id);
-    toast(hasil.message ?? (hasil.ok ? "Arsip dihapus." : "Gagal menghapus arsip."), hasil.ok ? "success" : "error");
-    if (hasil.ok) {
-      setHapus(null);
-      setDetailId(null);
+    setMenghapusArsip(true);
+    try {
+      const hasil = await deleteArsip(hapus.id);
+      toast(hasil.message ?? (hasil.ok ? "Arsip dihapus." : "Gagal menghapus arsip."), hasil.ok ? "success" : "error");
+      if (hasil.ok) {
+        setHapus(null);
+        setDetailId(null);
+      }
+    } finally {
+      setMenghapusArsip(false);
     }
   };
 
@@ -1050,9 +1075,15 @@ export default function ArsipPage() {
             <button type="button" className="btn btn-ghost" onClick={() => setFolderModalOpen(false)}>
               Batal
             </button>
-            <button type="submit" form="form-folder" className="btn">
+            <TombolMemuat
+              type="submit"
+              form="form-folder"
+              className="btn"
+              loading={menyimpanFolder}
+              loadingText="Menyimpan..."
+            >
               {editingFolder ? "Simpan Perubahan" : "Buat Folder"}
-            </button>
+            </TombolMemuat>
           </>
         }
       >
@@ -1098,14 +1129,16 @@ export default function ArsipPage() {
             <button type="button" className="btn btn-ghost" onClick={() => setHapusFolder(null)}>
               Batal
             </button>
-            <button
+            <TombolMemuat
               type="button"
               className="btn btn-danger"
               disabled={Boolean(hapusFolder && (jumlahArsipPerFolder.get(hapusFolder.id) ?? 0) > 0)}
               onClick={konfirmasiHapusFolder}
+              loading={menghapusFolder}
+              loadingText="Menghapus..."
             >
               Hapus Folder
-            </button>
+            </TombolMemuat>
           </>
         }
       >
@@ -1135,9 +1168,15 @@ export default function ArsipPage() {
             <button type="button" className="btn btn-ghost" onClick={() => setFormOpen(false)}>
               Batal
             </button>
-            <button type="submit" form="form-arsip" className="btn">
+            <TombolMemuat
+              type="submit"
+              form="form-arsip"
+              className="btn"
+              loading={menyimpanArsip}
+              loadingText="Menyimpan..."
+            >
               {editing ? "Simpan Perubahan" : "Simpan Arsip"}
-            </button>
+            </TombolMemuat>
           </>
         }
       >
@@ -1275,9 +1314,15 @@ export default function ArsipPage() {
             <button type="button" className="btn btn-ghost" onClick={() => setHapus(null)}>
               Batal
             </button>
-            <button type="button" className="btn btn-danger" onClick={konfirmasiHapus}>
+            <TombolMemuat
+              type="button"
+              className="btn btn-danger"
+              onClick={konfirmasiHapus}
+              loading={menghapusArsip}
+              loadingText="Menghapus..."
+            >
               Hapus
-            </button>
+            </TombolMemuat>
           </>
         }
       >

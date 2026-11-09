@@ -1155,6 +1155,17 @@ input[type="date"].input {
   width: 100%;
 }
 
+.spinner {
+  flex-shrink: 0;
+  animation: spin 0.7s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
 .actions-row {
   display: flex;
   align-items: center;

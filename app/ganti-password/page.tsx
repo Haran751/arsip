@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useState } from "react";
+import TombolMemuat from "@/components/loading-button";
 import { useData } from "@/lib/data-store";
 
 export default function GantiPasswordPage() {
@@ -11,6 +12,7 @@ export default function GantiPasswordPage() {
   const [konfirmasi, setKonfirmasi] = useState("");
   const [error, setError] = useState("");
   const [sukses, setSukses] = useState(false);
+  const [menyimpan, setMenyimpan] = useState(false);
 
   const simpan = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -30,16 +32,21 @@ export default function GantiPasswordPage() {
       return;
     }
 
-    const hasil = await changePassword(lama, baru);
-    if (!hasil.ok) {
-      setError(hasil.message ?? "Gagal mengganti password.");
-      return;
+    setMenyimpan(true);
+    try {
+      const hasil = await changePassword(lama, baru);
+      if (!hasil.ok) {
+        setError(hasil.message ?? "Gagal mengganti password.");
+        return;
+      }
+      toast(hasil.message ?? "Password berhasil diganti.");
+      setLama("");
+      setBaru("");
+      setKonfirmasi("");
+      setSukses(true);
+    } finally {
+      setMenyimpan(false);
     }
-    toast(hasil.message ?? "Password berhasil diganti.");
-    setLama("");
-    setBaru("");
-    setKonfirmasi("");
-    setSukses(true);
   };
 
   return (
@@ -107,9 +114,15 @@ export default function GantiPasswordPage() {
               required
             />
           </div>
-          <button type="submit" className="btn btn-block" style={{ marginTop: 16 }}>
+          <TombolMemuat
+            type="submit"
+            className="btn btn-block"
+            style={{ marginTop: 16 }}
+            loading={menyimpan}
+            loadingText="Menyimpan..."
+          >
             Simpan Password
-          </button>
+          </TombolMemuat>
         </form>
 
         <div style={{ marginTop: 18, textAlign: "center" }}>

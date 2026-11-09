@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import Modal from "@/components/modal";
 import StatusBadge from "@/components/status-badge";
+import TombolMemuat from "@/components/loading-button";
 import { type KodeArsip, type KodeInput } from "@/lib/types";
 import { useData, type KodeImportRow } from "@/lib/data-store";
 import { downloadCsv, parseCsv } from "@/lib/export";
@@ -50,6 +51,9 @@ export default function KodeArsipPage() {
   const [importRows, setImportRows] = useState<KodeImportRow[]>([]);
   const [importError, setImportError] = useState("");
   const [importNama, setImportNama] = useState("");
+  const [menyimpan, setMenyimpan] = useState(false);
+  const [menghapus, setMenghapus] = useState(false);
+  const [mengimpor, setMengimpor] = useState(false);
 
   const filtered = useMemo(() => {
     const kata = cari.trim().toLowerCase();
@@ -79,30 +83,40 @@ export default function KodeArsipPage() {
 
   const simpan = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    const hasil = await saveKode(
-      {
-        kode: form.kode,
-        nama: form.nama,
-        retensi_aktif_thn: Number(form.retensi_aktif_thn) || 0,
-        retensi_inaktif_thn: Number(form.retensi_inaktif_thn) || 0,
-        nasib_akhir: form.nasib_akhir,
-        uraian: form.uraian.split("\n").map((item) => item.trim()).filter(Boolean),
-      },
-      editing?.id,
-    );
-    if (!hasil.ok) {
-      setFormError(hasil.message ?? "Gagal menyimpan kode arsip.");
-      return;
+    setMenyimpan(true);
+    try {
+      const hasil = await saveKode(
+        {
+          kode: form.kode,
+          nama: form.nama,
+          retensi_aktif_thn: Number(form.retensi_aktif_thn) || 0,
+          retensi_inaktif_thn: Number(form.retensi_inaktif_thn) || 0,
+          nasib_akhir: form.nasib_akhir,
+          uraian: form.uraian.split("\n").map((item) => item.trim()).filter(Boolean),
+        },
+        editing?.id,
+      );
+      if (!hasil.ok) {
+        setFormError(hasil.message ?? "Gagal menyimpan kode arsip.");
+        return;
+      }
+      toast(hasil.message ?? "Kode arsip disimpan.");
+      setFormOpen(false);
+    } finally {
+      setMenyimpan(false);
     }
-    toast(hasil.message ?? "Kode arsip disimpan.");
-    setFormOpen(false);
   };
 
   const konfirmasiHapus = async () => {
     if (!hapus) return;
-    const hasil = await deleteKode(hapus.id);
-    toast(hasil.message ?? (hasil.ok ? "Kode arsip dihapus." : "Gagal menghapus kode."), hasil.ok ? "success" : "error");
-    if (hasil.ok) setHapus(null);
+    setMenghapus(true);
+    try {
+      const hasil = await deleteKode(hapus.id);
+      toast(hasil.message ?? (hasil.ok ? "Kode arsip dihapus." : "Gagal menghapus kode."), hasil.ok ? "success" : "error");
+      if (hasil.ok) setHapus(null);
+    } finally {
+      setMenghapus(false);
+    }
   };
 
   const unduhTemplate = () => {
@@ -199,18 +213,23 @@ export default function KodeArsipPage() {
       toast("Tidak ada baris valid untuk diimpor.", "error");
       return;
     }
-    const hasil = await importKode(
-      valid.map((row) => ({
-        kode: row.kode,
-        nama: row.nama,
-        retensi_aktif_thn: row.retensi_aktif_thn,
-        retensi_inaktif_thn: row.retensi_inaktif_thn,
-        nasib_akhir: row.nasib_akhir,
-        uraian: row.uraian,
-      })),
-    );
-    toast(hasil.message ?? "Impor selesai.", hasil.ok ? "success" : "error");
-    if (hasil.ok) setImportOpen(false);
+    setMengimpor(true);
+    try {
+      const hasil = await importKode(
+        valid.map((row) => ({
+          kode: row.kode,
+          nama: row.nama,
+          retensi_aktif_thn: row.retensi_aktif_thn,
+          retensi_inaktif_thn: row.retensi_inaktif_thn,
+          nasib_akhir: row.nasib_akhir,
+          uraian: row.uraian,
+        })),
+      );
+      toast(hasil.message ?? "Impor selesai.", hasil.ok ? "success" : "error");
+      if (hasil.ok) setImportOpen(false);
+    } finally {
+      setMengimpor(false);
+    }
   };
 
   const baru = importRows.filter((row) => row.status === "Baru").length;
@@ -355,9 +374,9 @@ export default function KodeArsipPage() {
             <button type="button" className="btn btn-ghost" onClick={() => setFormOpen(false)}>
               Batal
             </button>
-            <button type="submit" form="form-kode" className="btn">
+            <TombolMemuat type="submit" form="form-kode" className="btn" loading={menyimpan} loadingText="Menyimpan...">
               {editing ? "Simpan Perubahan" : "Simpan Kode"}
-            </button>
+            </TombolMemuat>
           </>
         }
       >
@@ -453,9 +472,9 @@ export default function KodeArsipPage() {
             <button type="button" className="btn btn-ghost" onClick={() => setHapus(null)}>
               Batal
             </button>
-            <button type="button" className="btn btn-danger" onClick={konfirmasiHapus}>
+            <TombolMemuat type="button" className="btn btn-danger" onClick={konfirmasiHapus} loading={menghapus} loadingText="Menghapus...">
               Hapus
-            </button>
+            </TombolMemuat>
           </>
         }
       >
@@ -475,9 +494,16 @@ export default function KodeArsipPage() {
             <button type="button" className="btn btn-ghost" onClick={() => setImportOpen(false)}>
               Batal
             </button>
-            <button type="button" className="btn" onClick={konfirmasiImpor} disabled={baru + diperbarui === 0}>
+            <TombolMemuat
+              type="button"
+              className="btn"
+              onClick={konfirmasiImpor}
+              disabled={baru + diperbarui === 0}
+              loading={mengimpor}
+              loadingText="Mengimpor..."
+            >
               Impor {baru + diperbarui} Baris Valid
-            </button>
+            </TombolMemuat>
           </>
         }
       >

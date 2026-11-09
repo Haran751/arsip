@@ -10,6 +10,7 @@ import { downloadCsv, parseCsv } from "@/lib/export";
 
 const TEMPLATE_HEADERS = ["kode", "nama", "retensi_aktif_thn", "retensi_inaktif_thn", "nasib_akhir", "uraian"];
 const NASIB = ["Musnah", "Permanen", "Dinilai_Kembali"] as const;
+const PAGE_SIZE = 20;
 
 type FormState = {
   kode: string;
@@ -33,8 +34,9 @@ function normalisasiNasib(value: string): KodeInput["nasib_akhir"] | null {
 }
 
 export default function KodeArsipPage() {
-  const { data, isAdmin, countArsip, saveKode, deleteKode, importKode, toast } = useData();
+  const { data, isAdmin, saveKode, deleteKode, importKode, toast } = useData();
   const [cari, setCari] = useState("");
+  const [halaman, setHalaman] = useState(1);
   const [formOpen, setFormOpen] = useState(false);
   const [editing, setEditing] = useState<KodeArsip | null>(null);
   const [hapus, setHapus] = useState<KodeArsip | null>(null);
@@ -59,6 +61,12 @@ export default function KodeArsipPage() {
     const kata = cari.trim().toLowerCase();
     return data.kodeArsip.filter((item) => !kata || `${item.kode} ${item.nama}`.toLowerCase().includes(kata));
   }, [cari, data.kodeArsip]);
+
+  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+  const halamanAman = Math.min(halaman, totalPages);
+  const paged = filtered.slice((halamanAman - 1) * PAGE_SIZE, halamanAman * PAGE_SIZE);
+  const awal = filtered.length === 0 ? 0 : (halamanAman - 1) * PAGE_SIZE + 1;
+  const akhir = Math.min(halamanAman * PAGE_SIZE, filtered.length);
 
   const bukaTambah = () => {
     setEditing(null);
@@ -278,7 +286,10 @@ export default function KodeArsipPage() {
             className="input input-search"
             placeholder="Cari kode atau nama..."
             value={cari}
-            onChange={(event) => setCari(event.target.value)}
+            onChange={(event) => {
+              setCari(event.target.value);
+              setHalaman(1);
+            }}
           />
           <label className={`btn btn-ghost${isAdmin ? "" : " disabled"}`} style={{ cursor: isAdmin ? "pointer" : "not-allowed" }}>
             Impor CSV
@@ -309,8 +320,8 @@ export default function KodeArsipPage() {
               </tr>
             </thead>
             <tbody>
-              {filtered.map((kode) => {
-                const jumlah = countArsip(kode.kode);
+              {paged.map((kode) => {
+                const jumlah = kode.jumlah;
                 const daftarUraian = uraianTampil(kode.uraian);
                 return (
                   <tr key={kode.id}>
@@ -361,6 +372,33 @@ export default function KodeArsipPage() {
               ) : null}
             </tbody>
           </table>
+        </div>
+
+        <div className="table-foot">
+          <span>
+            Menampilkan {awal}-{akhir} dari {filtered.length} kode
+          </span>
+          <div className="pager">
+            <button
+              type="button"
+              className="btn btn-ghost btn-sm"
+              disabled={halamanAman <= 1}
+              onClick={() => setHalaman((value) => Math.max(1, value - 1))}
+            >
+              Sebelumnya
+            </button>
+            <span className="chip">
+              Halaman <strong>{halamanAman}</strong> / {totalPages}
+            </span>
+            <button
+              type="button"
+              className="btn btn-ghost btn-sm"
+              disabled={halamanAman >= totalPages}
+              onClick={() => setHalaman((value) => Math.min(totalPages, value + 1))}
+            >
+              Berikutnya
+            </button>
+          </div>
         </div>
       </div>
 

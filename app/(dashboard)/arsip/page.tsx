@@ -1055,7 +1055,7 @@ export default function ArsipPage() {
                       />
                     </th>
                   ) : null}
-                  <th>Judul</th>
+                  <th>Uraian Informasi Arsip</th>
                   <th>Kode</th>
                   {!folderAktif ? <th>Folder</th> : null}
                   <th>Ditambahkan Oleh</th>
@@ -1601,7 +1601,7 @@ export default function ArsipPage() {
               />
             </div>
             <div className="field field-full">
-              <label htmlFor="judul-arsip">Judul arsip</label>
+              <label htmlFor="judul-arsip">Uraian informasi arsip</label>
               <input
                 id="judul-arsip"
                 className="input"

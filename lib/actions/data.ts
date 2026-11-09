@@ -2,12 +2,15 @@
 
 import { revalidatePath } from "next/cache";
 import type { Prisma } from "@prisma/client";
-import { prisma } from "@/lib/prisma";
+import { prisma, transaksi } from "@/lib/prisma";
 import { hitungRetensi } from "@/lib/retensi";
 import { sesiPengguna, bolehKelola, pesanError, tulisLog } from "./guard";
 import type { ActionResult, ArsipInput, FolderInput, KodeInput } from "@/lib/types";
 
 type HasilImport = ActionResult & { created?: number; updated?: number };
+
+// Jumlah baris per transaksi saat import agar tidak menahan transaksi terlalu lama.
+const UKURAN_BATCH_IMPOR = 50;
 
 function statusArsip(nasib: string, akhirAktif: Date, akhirRetensi: Date): "Aktif" | "Inaktif" | "Permanen" {
   if (nasib === "Permanen") return "Permanen";
@@ -57,7 +60,7 @@ export async function simpanArsipAksi(input: ArsipInput, id?: string): Promise<A
     const { akhirAktif, akhirRetensi } = hitungRetensi(tanggal, kode.retensi_aktif_thn, kode.retensi_inaktif_thn);
     const status = statusArsip(kode.nasib_akhir, akhirAktif, akhirRetensi);
 
-    await prisma.$transaction(async (tx) => {
+    await transaksi(async (tx) => {
       if (id) {
         const existing = await tx.arsip.findUnique({ where: { id } });
         if (!existing || existing.deleted_at) throw new Error("Arsip tidak ditemukan.");
@@ -153,7 +156,7 @@ export async function hapusArsipAksi(id: string): Promise<ActionResult> {
     const arsip = await prisma.arsip.findUnique({ where: { id } });
     if (!arsip || arsip.deleted_at) return { ok: false, message: "Arsip tidak ditemukan." };
 
-    await prisma.$transaction(async (tx) => {
+    await transaksi(async (tx) => {
       await tx.arsip.update({
         where: { id },
         data: { deleted_at: new Date(), updated_by: aktor.id },
@@ -187,7 +190,7 @@ export async function simpanFolderAksi(input: FolderInput, id?: string): Promise
     const nama = input.nama.trim();
     if (!nama) return { ok: false, message: "Nama folder wajib diisi." };
 
-    await prisma.$transaction(async (tx) => {
+    await transaksi(async (tx) => {
       if (id) {
         const existing = await tx.folder.findUnique({ where: { id } });
         if (!existing) throw new Error("Folder tidak ditemukan.");
@@ -221,7 +224,7 @@ export async function hapusFolderAksi(id: string): Promise<ActionResult> {
     const jumlah = await prisma.arsip.count({ where: { folder_id: id, deleted_at: null } });
     if (jumlah > 0) return { ok: false, message: "Folder masih berisi arsip. Pindahkan atau hapus arsip terlebih dahulu." };
 
-    await prisma.$transaction(async (tx) => {
+    await transaksi(async (tx) => {
       await tx.folder.delete({ where: { id } });
       await tulisLog(tx, aktor, "Hapus Folder", `Menghapus folder ${folder.nama}.`, "hapus", { type: "folder", id });
     });
@@ -242,7 +245,7 @@ export async function simpanKodeAksi(input: KodeInput, id?: string): Promise<Act
     const nama = input.nama.trim();
     if (!kode || !nama) return { ok: false, message: "Kode dan nama wajib diisi." };
 
-    await prisma.$transaction(async (tx) => {
+    await transaksi(async (tx) => {
       let kodeId = id;
       if (id) {
         const existing = await tx.kodeArsip.findUnique({ where: { id } });
@@ -302,7 +305,7 @@ export async function hapusKodeAksi(id: string): Promise<ActionResult> {
     const jumlah = await prisma.arsip.count({ where: { kode_arsip_id: id, deleted_at: null } });
     if (jumlah > 0) return { ok: false, message: "Kode masih dipakai arsip. Pindahkan arsip terlebih dahulu." };
 
-    await prisma.$transaction(async (tx) => {
+    await transaksi(async (tx) => {
       await tx.kodeArsip.delete({ where: { id } });
       await tulisLog(tx, aktor, "Hapus Kode Arsip", `Menghapus kode ${kode.kode}.`, "hapus", { type: "kode_arsip", id });
     });
@@ -320,43 +323,80 @@ export async function imporKodeAksi(rows: KodeInput[]): Promise<HasilImport> {
     if (aktor.role !== "Admin") return { ok: false, message: "Hanya Admin yang dapat mengimpor kode arsip." };
     if (!Array.isArray(rows) || rows.length === 0) return { ok: false, message: "Tidak ada data untuk diimpor." };
 
+    // Normalisasi & buang baris tidak valid sekali di awal.
+    const bersih = rows
+      .map((row) => ({
+        kode: row.kode.trim().toUpperCase(),
+        nama: row.nama.trim(),
+        retensi_aktif_thn: row.retensi_aktif_thn,
+        retensi_inaktif_thn: row.retensi_inaktif_thn,
+        nasib_akhir: row.nasib_akhir,
+        uraian: rapikanUraian(row.uraian),
+      }))
+      .filter((row) => row.kode && row.nama);
+    if (bersih.length === 0) return { ok: false, message: "Tidak ada data valid untuk diimpor." };
+
     let created = 0;
     let updated = 0;
-    const affectedIds = new Set<string>();
 
-    await prisma.$transaction(async (tx) => {
-      for (const row of rows) {
-        const kode = row.kode.trim().toUpperCase();
-        const nama = row.nama.trim();
-        if (!kode || !nama) continue;
-        const existing = await tx.kodeArsip.findUnique({ where: { kode } });
-        const saved = await tx.kodeArsip.upsert({
-          where: { kode },
-          create: {
-            kode,
-            nama,
-            retensi_aktif_thn: row.retensi_aktif_thn,
-            retensi_inaktif_thn: row.retensi_inaktif_thn,
-            nasib_akhir: row.nasib_akhir,
-            uraian: rapikanUraian(row.uraian),
-          },
-          update: {
-            nama,
-            retensi_aktif_thn: row.retensi_aktif_thn,
-            retensi_inaktif_thn: row.retensi_inaktif_thn,
-            nasib_akhir: row.nasib_akhir,
-            uraian: rapikanUraian(row.uraian),
-          },
+    // Proses per batch agar tiap transaksi singkat: transaksi panjang lewat
+    // pooler Supabase bisa ditutup di tengah jalan ("Transaction not found").
+    for (let i = 0; i < bersih.length; i += UKURAN_BATCH_IMPOR) {
+      const batch = bersih.slice(i, i + UKURAN_BATCH_IMPOR);
+      const kodeBatch = batch.map((row) => row.kode);
+
+      // Hitung hasil per batch; baru dijumlahkan setelah transaksi commit.
+      let batchCreated = 0;
+      let batchUpdated = 0;
+
+      await transaksi(async (tx) => {
+        // Ambil kode yang sudah ada dalam satu query (hindari findUnique per baris).
+        const sudahAda = await tx.kodeArsip.findMany({
+          where: { kode: { in: kodeBatch } },
+          select: { kode: true },
         });
-        affectedIds.add(saved.id);
-        if (existing) updated += 1;
-        else created += 1;
-      }
+        const setAda = new Set(sudahAda.map((item) => item.kode));
+        const sudahDiproses = new Set<string>();
+        const affectedIds = new Set<string>();
 
-      for (const kodeId of affectedIds) {
-        await perbaruiRetensiArsip(tx, { id: kodeId });
-      }
-      await tulisLog(tx, aktor, "Import Kode Arsip", `Mengimpor ${rows.length} kode arsip.`, "buat", {
+        for (const row of batch) {
+          const sudah = setAda.has(row.kode) || sudahDiproses.has(row.kode);
+          sudahDiproses.add(row.kode);
+
+          const saved = await tx.kodeArsip.upsert({
+            where: { kode: row.kode },
+            create: {
+              kode: row.kode,
+              nama: row.nama,
+              retensi_aktif_thn: row.retensi_aktif_thn,
+              retensi_inaktif_thn: row.retensi_inaktif_thn,
+              nasib_akhir: row.nasib_akhir,
+              uraian: row.uraian,
+            },
+            update: {
+              nama: row.nama,
+              retensi_aktif_thn: row.retensi_aktif_thn,
+              retensi_inaktif_thn: row.retensi_inaktif_thn,
+              nasib_akhir: row.nasib_akhir,
+              uraian: row.uraian,
+            },
+          });
+          affectedIds.add(saved.id);
+          if (sudah) batchUpdated += 1;
+          else batchCreated += 1;
+        }
+
+        for (const kodeId of affectedIds) {
+          await perbaruiRetensiArsip(tx, { id: kodeId });
+        }
+      });
+
+      created += batchCreated;
+      updated += batchUpdated;
+    }
+
+    await transaksi(async (tx) => {
+      await tulisLog(tx, aktor, "Import Kode Arsip", `Mengimpor ${bersih.length} kode arsip.`, "buat", {
         type: "kode_arsip",
         data: { created, updated },
       });
@@ -405,7 +445,7 @@ export async function tambahUsulanAksi(itemIds: string[], catatan?: string): Pro
     const jumlahTahun = await prisma.usulanPemusnahan.count({ where: { tanggal: { gte: awal, lt: akhir } } });
     const nomor = `USUL-${tahun}-${String(jumlahTahun + 1).padStart(3, "0")}`;
 
-    const usulan = await prisma.$transaction(async (tx) => {
+    const usulan = await transaksi(async (tx) => {
       const dibuat = await tx.usulanPemusnahan.create({
         data: {
           nomor,
@@ -440,7 +480,7 @@ export async function putuskanUsulanAksi(id: string, status: "Disetujui" | "Dito
     if (!usulan) return { ok: false, message: "Usulan tidak ditemukan." };
     if (usulan.status !== "Diajukan") return { ok: false, message: "Usulan sudah diputuskan." };
 
-    await prisma.$transaction(async (tx) => {
+    await transaksi(async (tx) => {
       await tx.usulanPemusnahan.update({
         where: { id },
         data: {

@@ -26,7 +26,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
     if (dueArsip.length) {
       list.push({
         id: "due",
-        title: `${dueArsip.length} arsip jatuh tempo`,
+        title: `${dueArsip.length} arsip mencapai akhir masa retensi`,
         desc: "Arsip inaktif siap ditinjau untuk penyusutan.",
         href: "/penyusutan",
         tone: "warn",

@@ -38,21 +38,29 @@ export default function BerandaPage() {
   );
 
   const bulanan = useMemo(() => {
-    const map = new Map<string, number>();
+    const hitung = new Map<string, number>();
     data.arsip.forEach((arsip) => {
       const key = arsip.tanggal_arsip.slice(0, 7);
-      map.set(key, (map.get(key) ?? 0) + 1);
+      hitung.set(key, (hitung.get(key) ?? 0) + 1);
     });
-    const keys = Array.from(map.keys()).sort().slice(-6);
-    const max = Math.max(1, ...keys.map((key) => map.get(key) ?? 0));
-    return {
-      max,
-      items: keys.map((key) => ({
+    const kunci = Array.from(hitung.keys()).sort();
+    if (!kunci.length) return { max: 1, items: [] };
+    const terakhir = new Date(`${kunci[kunci.length - 1]}-01T00:00:00`);
+    const items = Array.from({ length: 6 }, (_, offset) => {
+      const tanggal = new Date(terakhir.getFullYear(), terakhir.getMonth() - 5 + offset, 1);
+      const key = `${tanggal.getFullYear()}-${String(tanggal.getMonth() + 1).padStart(2, "0")}`;
+      return {
         key,
-        count: map.get(key) ?? 0,
-        label: new Date(`${key}-01T00:00:00`).toLocaleDateString("id-ID", { month: "short" }),
-        year: key.slice(2, 4),
-      })),
+        count: hitung.get(key) ?? 0,
+        tahun: String(tanggal.getFullYear()),
+        bulan: String(tanggal.getMonth() + 1).padStart(2, "0"),
+        label: `${tanggal.toLocaleDateString("id-ID", { month: "short" })} '${String(tanggal.getFullYear()).slice(2)}`,
+        nama: `${tanggal.toLocaleDateString("id-ID", { month: "long" })} ${tanggal.getFullYear()}`,
+      };
+    });
+    return {
+      max: Math.max(1, ...items.map((item) => item.count)),
+      items,
     };
   }, [data.arsip]);
 
@@ -97,7 +105,7 @@ export default function BerandaPage() {
             <strong>
               <AnimatedNumber value={stats.due} />
             </strong>
-            <span>Jatuh tempo</span>
+            <span>Masa retensi arsip</span>
           </div>
           <div className="banner-stat">
             <strong>
@@ -165,7 +173,7 @@ export default function BerandaPage() {
             <div className="section-head">
               <div>
                 <h2 className="h2">Arsip per Bulan</h2>
-                <p className="sub">Enam bulan terakhir dengan arsip terbanyak.</p>
+                <p className="sub">Klik batang untuk melihat arsip pada bulan tersebut.</p>
               </div>
               <span className="badge badge-muted">
                 <Icon name="chart" size={12} /> {stats.total} arsip
@@ -175,17 +183,25 @@ export default function BerandaPage() {
               <div className="skeleton" style={{ height: 186, borderRadius: 16 }} />
             ) : bulanan.items.length ? (
               <div className="chart">
-                {bulanan.items.map((item) => (
-                  <div key={item.key} className="chart-col">
+                {bulanan.items.map((item, index) => (
+                  <Link
+                    key={item.key}
+                    href={`/arsip?tahun=${item.tahun}&bulan=${item.bulan}`}
+                    className="chart-col"
+                    title={`${item.nama}: ${item.count} arsip`}
+                    aria-label={`Lihat ${item.count} arsip dari ${item.nama}`}
+                  >
                     <div
                       className="chart-bar"
-                      style={{ height: `${Math.max(6, (item.count / bulanan.max) * 100)}%` }}
-                      title={`${item.label} ${item.year}: ${item.count} arsip`}
+                      style={{
+                        height: `${Math.max(6, (item.count / bulanan.max) * 100)}%`,
+                        animationDelay: `${index * 70}ms`,
+                      }}
                     >
                       <span>{item.count}</span>
                     </div>
                     <span className="chart-label">{item.label}</span>
-                  </div>
+                  </Link>
                 ))}
               </div>
             ) : (

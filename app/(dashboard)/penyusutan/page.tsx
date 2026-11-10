@@ -75,7 +75,7 @@ export default function PenyusutanPage() {
     <>
       <div className="grid grid-4">
         <div className="card stat-card">
-          <div className="stat-label">Jatuh Tempo</div>
+          <div className="stat-label">Masa Retensi Arsip</div>
           <div className="stat-value" style={{ color: "#b83a3a" }}>
             {stats.due}
           </div>
@@ -185,7 +185,7 @@ export default function PenyusutanPage() {
       <div className="card">
         <div className="section-head">
           <div>
-            <h2 className="h2">Arsip Jatuh Tempo</h2>
+            <h2 className="h2">Masa Retensi Arsip</h2>
             <p className="sub">Arsip inaktif yang belum masuk usulan aktif dan dapat diusulkan.</p>
           </div>
         </div>
@@ -228,7 +228,7 @@ export default function PenyusutanPage() {
               {eligible.length === 0 ? (
                 <tr>
                   <td colSpan={6}>
-                    <div className="empty">Tidak ada arsip jatuh tempo yang belum diusulkan.</div>
+                    <div className="empty">Tidak ada arsip yang mencapai akhir masa retensi.</div>
                   </td>
                 </tr>
               ) : null}

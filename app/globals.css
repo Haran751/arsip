@@ -2158,6 +2158,17 @@ tbody tr:hover td {
   align-items: center;
   gap: 8px;
   min-width: 0;
+  cursor: pointer;
+}
+
+.chart-col:hover .chart-bar {
+  filter: brightness(1.12);
+}
+
+.chart-col:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 3px;
+  border-radius: 8px;
 }
 
 .chart-bar {
@@ -2170,6 +2181,7 @@ tbody tr:hover td {
   transform-origin: bottom;
   animation: grow-up 0.6s cubic-bezier(0.22, 0.8, 0.3, 1) both;
   box-shadow: 0 8px 18px rgba(31, 191, 117, 0.22);
+  transition: filter 0.15s ease;
 }
 
 .chart-bar span {

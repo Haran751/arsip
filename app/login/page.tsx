@@ -43,7 +43,7 @@ export default async function LoginPage({
                 <span>
                   <Icon name="clock" size={15} />
                 </span>
-                Retensi otomatis dan pengingat arsip yang jatuh tempo.
+                Retensi otomatis dan pengingat masa retensi arsip.
               </div>
               <div className="login-feature">
                 <span>

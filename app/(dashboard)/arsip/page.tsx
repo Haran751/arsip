@@ -426,7 +426,7 @@ export default function ArsipPage() {
     setFormOpen(true);
   };
 
-  // Menangani URL params (?baru=1, ?detail=..., ?folder=...)
+  // Menangani URL params (?baru=1, ?detail=..., ?folder=..., ?tahun=..., ?bulan=...)
   /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => {
     if (!ready || paramsHandled.current) return;
@@ -435,8 +435,13 @@ export default function ArsipPage() {
     const detailParam = params.get("detail");
     const cariParam = params.get("cari");
     const folderParam = params.get("folder");
+    const tahunParam = params.get("tahun");
+    const bulanParam = params.get("bulan");
 
     if (cariParam) setCari(cariParam);
+
+    if (tahunParam) setTahun(tahunParam);
+    if (bulanParam) setBulan(bulanParam);
 
     if (folderParam && data.folders.some((f) => f.id === folderParam)) {
       setFolderAktifId(folderParam);

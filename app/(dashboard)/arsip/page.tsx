@@ -561,15 +561,22 @@ export default function ArsipPage() {
 
     setMengekspor(true);
     try {
-      const res = await fetch("/api/ekspor", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ jenis: jenisEkspor, format: formatEkspor, ids }),
-      });
+      let res: Response;
+      try {
+        res = await fetch("/api/ekspor", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ jenis: jenisEkspor, format: formatEkspor, ids }),
+        });
+      } catch {
+        toast("Koneksi terputus saat mengekspor. Periksa jaringan lalu coba lagi.", "error");
+        return;
+      }
 
       if (!res.ok) {
-        const data = (await res.json().catch(() => null)) as { error?: string } | null;
-        throw new Error(data?.error ?? "Gagal mengekspor data.");
+        const data = (await res.json().catch(() => null)) as { message?: string } | null;
+        toast(data?.message ?? "Gagal mengekspor data. Silakan coba lagi.", "error");
+        return;
       }
 
       const blob = await res.blob();
@@ -585,8 +592,8 @@ export default function ArsipPage() {
       toast(`Ekspor ${formatEkspor.toUpperCase()} berhasil diunduh.`);
       setEksporOpen(false);
       await refreshData();
-    } catch (error) {
-      toast(error instanceof Error ? error.message : "Gagal mengekspor data.", "error");
+    } catch {
+      toast("Gagal mengekspor data. Silakan coba lagi.", "error");
     } finally {
       setMengekspor(false);
     }
@@ -683,8 +690,7 @@ export default function ArsipPage() {
 
           {!canManage ? (
             <div className="form-note" style={{ marginBottom: 14 }}>
-              Anda masuk sebagai Pimpinan. Folder dan arsip dapat dilihat serta diunduh, tetapi perubahan data hanya untuk
-              Admin dan Operator.
+              Anda hanya dapat melihat dan mengunduh folder serta arsip. Perubahan data hanya untuk Admin dan Operator.
             </div>
           ) : null}
 
@@ -826,7 +832,7 @@ export default function ArsipPage() {
                 disabled={!canManage || data.kodeArsip.length === 0}
                 title={
                   !canManage
-                    ? "Pimpinan hanya dapat melihat"
+                    ? "Akun Anda hanya dapat melihat"
                     : data.kodeArsip.length === 0
                       ? "Tambahkan kode arsip dahulu"
                       : ""
@@ -1192,14 +1198,26 @@ export default function ArsipPage() {
                   <tr>
                     <td colSpan={(folderAktif ? 5 : 6) + (canManage ? 1 : 0)}>
                       <div className="empty" style={{ padding: "32px 16px" }}>
-                        <p style={{ margin: "0 0 10px 0" }}>
-                          {folderAktif
-                            ? "Folder ini belum memiliki arsip."
-                            : "Tidak ada arsip yang cocok dengan filter."}
+                        <p className="empty-title">
+                          {folderAktif ? "Folder ini belum memiliki arsip." : "Tidak ada arsip yang cocok dengan filter."}
                         </p>
                         {folderAktif && canManage ? (
-                          <button type="button" className="btn btn-sm" onClick={bukaTambah}>
+                          <button
+                            type="button"
+                            className="btn btn-sm"
+                            style={{ marginTop: 10 }}
+                            onClick={bukaTambah}
+                          >
                             <Icon name="plus" size={14} /> Tambah Arsip Sekarang
+                          </button>
+                        ) : !folderAktif && aktifFilter ? (
+                          <button
+                            type="button"
+                            className="btn btn-ghost btn-sm"
+                            style={{ marginTop: 10 }}
+                            onClick={resetFilter}
+                          >
+                            Bersihkan filter
                           </button>
                         ) : null}
                       </div>

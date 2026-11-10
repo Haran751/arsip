@@ -1,6 +1,7 @@
 import { auth } from "@/auth";
 import type { Prisma } from "@prisma/client";
 import type { Role } from "@/lib/types";
+import { UnauthorizedError, ForbiddenError } from "@/lib/errors";
 
 export type Aktor = {
   id: string;
@@ -10,10 +11,14 @@ export type Aktor = {
 
 export async function sesiPengguna(): Promise<Aktor> {
   const session = await auth();
-  if (!session?.user?.id || session.user.aktif === false) throw new Error("Sesi tidak valid. Silakan login ulang.");
-  if (session.user.must_change_password) throw new Error("Ganti password terlebih dahulu.");
+  if (!session?.user?.id || session.user.aktif === false) {
+    throw new UnauthorizedError("Sesi tidak valid. Silakan login ulang.");
+  }
+  if (session.user.must_change_password) {
+    throw new ForbiddenError("Ganti password terlebih dahulu.");
+  }
 
-  const role: Role = session.user.role === "Admin" || session.user.role === "Pimpinan" ? session.user.role : "Operator";
+  const role: Role = session.user.role === "Admin" ? session.user.role : "Operator";
   return {
     id: session.user.id,
     nama: session.user.name ?? session.user.email ?? "Pengguna",
@@ -23,11 +28,6 @@ export async function sesiPengguna(): Promise<Aktor> {
 
 export function bolehKelola(aktor: Aktor) {
   return aktor.role === "Admin" || aktor.role === "Operator";
-}
-
-export function pesanError(error: unknown) {
-  if (error instanceof Error) return error.message;
-  return "Terjadi kesalahan. Coba lagi.";
 }
 
 type Db = Prisma.TransactionClient | { logAktivitas: Prisma.TransactionClient["logAktivitas"] };

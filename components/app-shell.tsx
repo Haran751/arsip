@@ -5,12 +5,13 @@ import { usePathname } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
 import Icon from "./icon";
 import CommandPalette from "./command-palette";
+import OfflineBanner from "./offline-banner";
 import { useData } from "@/lib/data-store";
 import { navItems, mobileNavItems } from "@/lib/nav";
 import { inisial } from "@/lib/types";
 
 export default function AppShell({ children }: { children: React.ReactNode }) {
-  const { currentUser: user, stats, dueArsip } = useData();
+  const { currentUser: user, stats, dueArsip, muatGagal, refreshData } = useData();
   const pathname = usePathname();
   const [paletteOpen, setPaletteOpen] = useState(false);
   const [notifOpen, setNotifOpen] = useState(false);
@@ -207,8 +208,20 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
           </div>
         </header>
 
-        <div className="content">{children}</div>
+        <div className="content">
+          {muatGagal ? (
+            <div className="reload-banner" role="alert">
+              <span>Gagal memuat data terbaru dari server.</span>
+              <button type="button" className="btn btn-ghost btn-sm" onClick={() => void refreshData()}>
+                Muat ulang
+              </button>
+            </div>
+          ) : null}
+          {children}
+        </div>
       </div>
+
+      <OfflineBanner />
 
       <nav className="bottombar" aria-label="Navigasi bawah">
         {mobileNavItems.slice(0, 2).map((item) => {

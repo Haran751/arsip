@@ -3233,3 +3233,160 @@ html[data-reduce-motion="true"] *::after {
   box-shadow: 0 6px 16px rgba(15, 143, 87, 0.12);
 }
 
+
+
+/* ---------- Halaman status (error, 404, 403, 401) ---------- */
+
+.status-wrap {
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+}
+
+.status-loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+}
+
+.status-page {
+  max-width: 460px;
+  margin: 24px auto;
+  padding: 36px 28px;
+  text-align: center;
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+  background: var(--card);
+  box-shadow: var(--shadow-card);
+}
+
+.status-icon {
+  width: 56px;
+  height: 56px;
+  margin: 0 auto 14px;
+  border-radius: 18px;
+  display: grid;
+  place-items: center;
+  background: #fdecec;
+  color: #b83a3a;
+}
+
+.status-title {
+  font-size: 17px;
+}
+
+.status-desc {
+  margin-top: 6px;
+  color: var(--muted);
+  font-size: 12.5px;
+  line-height: 1.6;
+}
+
+.status-code {
+  margin-top: 12px;
+  font-size: 11px;
+  color: var(--muted);
+}
+
+.status-code code {
+  background: var(--tint);
+  color: var(--primary-dark);
+  border-radius: 6px;
+  padding: 2px 6px;
+  font-family: inherit;
+}
+
+.status-actions {
+  margin-top: 18px;
+  display: flex;
+  gap: 10px;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+/* ---------- Banner offline & gagal memuat ---------- */
+
+.offline-banner {
+  position: fixed;
+  left: 50%;
+  transform: translateX(-50%);
+  bottom: 18px;
+  z-index: 90;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 9px 14px;
+  border-radius: 999px;
+  background: #0b2b26;
+  color: #fff;
+  font-size: 12px;
+  box-shadow: var(--shadow-soft);
+}
+
+.offline-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #ffb020;
+  animation: offline-pulse 1.6s ease infinite;
+}
+
+@keyframes offline-pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.35;
+  }
+}
+
+.reload-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  padding: 10px 14px;
+  margin-bottom: 14px;
+  border-radius: 12px;
+  border: 1px solid #f3d9d9;
+  background: #fdecec;
+  color: #b83a3a;
+  font-size: 12.5px;
+}
+
+/* ---------- Error boundary widget ---------- */
+
+.widget-error {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  padding: 18px;
+  border-radius: var(--radius);
+  border: 1px dashed rgba(184, 58, 58, 0.35);
+  background: #fdf7f7;
+}
+
+.widget-error p {
+  margin-top: 3px;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+/* ---------- Empty state ---------- */
+
+.empty-title {
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--foreground);
+}
+
+.empty-desc {
+  margin-top: 4px;
+  font-size: 12px;
+}

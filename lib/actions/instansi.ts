@@ -3,8 +3,9 @@
 import { revalidatePath } from "next/cache";
 import { prisma, transaksi } from "@/lib/prisma";
 import { createSignedUploadUrl, removeFile } from "@/lib/storage";
+import { gagalAksi } from "@/lib/errors";
 import type { ActionResult, Instansi } from "@/lib/types";
-import { pesanError, sesiPengguna, tulisLog } from "./guard";
+import { sesiPengguna, tulisLog } from "./guard";
 
 const TIPE_LOGO: Record<string, string> = {
   png: "image/png",
@@ -54,7 +55,7 @@ export async function simpanInstansiAksi(input: Instansi): Promise<ActionResult>
     revalidatePath("/arsip");
     return { ok: true, message: "Konfigurasi instansi disimpan." };
   } catch (error) {
-    return { ok: false, message: pesanError(error) };
+    return gagalAksi(error, { aksi: "simpan-instansi" });
   }
 }
 
@@ -70,6 +71,6 @@ export async function buatUploadLogoAksi(ext: string): Promise<HasilUploadLogo> 
     const hasil = await createSignedUploadUrl(bersih, contentType, "logo");
     return { ok: true, signedUrl: hasil.signedUrl, path: hasil.path };
   } catch (error) {
-    return { ok: false, message: pesanError(error) };
+    return gagalAksi(error, { aksi: "upload-logo" });
   }
 }

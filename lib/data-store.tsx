@@ -66,6 +66,7 @@ type DataContextValue = {
   currentUser: AppUser;
   isAdmin: boolean;
   canManage: boolean;
+  muatGagal: boolean;
   stats: {
     total: number;
     aktif: number;
@@ -118,6 +119,7 @@ export function DataProvider({
 }) {
   const [data, setData] = useState<AppData>(initialData);
   const [currentUser, setCurrentUser] = useState<AppUser>(initialUser);
+  const [muatGagal, setMuatGagal] = useState(false);
   const [toasts, setToasts] = useState<Toast[]>([]);
   const timers = useRef<number[]>([]);
 
@@ -134,11 +136,14 @@ export function DataProvider({
     try {
       const next = await muatDataAksi();
       setData(next);
+      setMuatGagal(false);
       const saya = next.users.find((user) => user.id === initialUser.id);
       if (saya) setCurrentUser(saya);
       return next;
-    } catch (error) {
-      toast(error instanceof Error ? error.message : "Gagal memuat data dari server.", "error");
+    } catch {
+      // Pesan teknis tidak ditampilkan; user cukup tahu gagal memuat.
+      setMuatGagal(true);
+      toast("Gagal memuat data terbaru dari server.", "error");
       return null;
     }
   }, [initialUser.id, toast]);
@@ -337,6 +342,7 @@ export function DataProvider({
     currentUser,
     isAdmin,
     canManage,
+    muatGagal,
     stats,
     dueArsip,
     countArsip,

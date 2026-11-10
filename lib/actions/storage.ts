@@ -1,7 +1,8 @@
 "use server";
 
 import { createSignedDownloadUrl } from "@/lib/storage";
-import { pesanError, sesiPengguna } from "./guard";
+import { gagalAksi } from "@/lib/errors";
+import { sesiPengguna } from "./guard";
 
 export type HasilUnduh = {
   ok: boolean;
@@ -16,6 +17,6 @@ export async function ambilUrlUnduhAksi(path: string): Promise<HasilUnduh> {
     const url = await createSignedDownloadUrl(path, 60);
     return { ok: true, url };
   } catch (error) {
-    return { ok: false, message: pesanError(error) };
+    return gagalAksi(error, { aksi: "ambil-url-unduh" });
   }
 }

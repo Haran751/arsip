@@ -1,4 +1,4 @@
-export type Role = "Admin" | "Operator" | "Pimpinan";
+export type Role = "Admin" | "Operator";
 
 export type AppUser = {
   id: string;
@@ -138,11 +138,14 @@ export type UserInput = {
   email: string;
   role: Role;
   aktif: boolean;
+  password?: string;
 };
 
 export type ActionResult = {
   ok: boolean;
   message?: string;
+  errorId?: string;
+  fieldErrors?: Record<string, string>;
 };
 
 export function formatTanggal(value: string) {

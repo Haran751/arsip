@@ -1,4 +1,5 @@
 import type { AppUser, Role } from "@/lib/types";
+import { AppError } from "@/lib/errors";
 
 const BASE = (process.env.SUPABASE_URL ?? "").replace(/\/+$/, "");
 const KEY = process.env.SUPABASE_SECRET_KEY ?? "";
@@ -26,7 +27,12 @@ type DaftarPenggunaResponse = {
 
 function headerAdmin() {
   if (!BASE || !KEY || !supabaseTerkonfigurasi()) {
-    throw new Error("SUPABASE_URL dan SUPABASE_SECRET_KEY belum diisi di .env");
+    // Detail konfigurasi hanya ke log server, bukan ke user.
+    throw new AppError("Konfigurasi server belum lengkap. Hubungi administrator.", {
+      code: "KONFIGURASI",
+      status: 500,
+      cause: new Error("SUPABASE_URL dan SUPABASE_SECRET_KEY belum diisi di .env"),
+    });
   }
   return {
     apikey: KEY,
@@ -46,8 +52,13 @@ export async function panggilAuth<T>(path: string, init?: RequestInit): Promise<
   const data = teks ? JSON.parse(teks) : {};
 
   if (!res.ok) {
-    const pesan = data?.msg ?? data?.error_description ?? data?.message ?? `Permintaan gagal (${res.status})`;
-    throw new Error(pesan);
+    // Pesan asli dari layanan autentikasi tidak diteruskan ke user.
+    const pesanAsli = data?.msg ?? data?.error_description ?? data?.message ?? `status ${res.status}`;
+    throw new AppError("Gagal menghubungi layanan pengguna. Silakan coba lagi.", {
+      code: "LAYANAN_PENGGUNA",
+      status: 503,
+      cause: new Error(`${path} gagal: ${pesanAsli}`),
+    });
   }
   return data as T;
 }
@@ -108,7 +119,7 @@ export function keUserAplikasi(user: SupabaseAuthUser): AppUser | null {
   if (!username) return null;
 
   const role = String(meta.role ?? "Operator");
-  const roleValid: Role = role === "Admin" || role === "Pimpinan" ? role : "Operator";
+  const roleValid: Role = role === "Admin" ? role : "Operator";
   const banned = user.banned_until ? new Date(user.banned_until).getTime() > Date.now() : false;
 
   return {

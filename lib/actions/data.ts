@@ -4,7 +4,8 @@ import { revalidatePath } from "next/cache";
 import type { Prisma } from "@prisma/client";
 import { prisma, transaksi } from "@/lib/prisma";
 import { hitungRetensi } from "@/lib/retensi";
-import { sesiPengguna, bolehKelola, pesanError, tulisLog } from "./guard";
+import { ConflictError, NotFoundError, ValidationError, gagalAksi } from "@/lib/errors";
+import { sesiPengguna, bolehKelola, tulisLog } from "./guard";
 import type { ActionResult, ArsipInput, FolderInput, KodeInput } from "@/lib/types";
 
 type HasilImport = ActionResult & { created?: number; updated?: number };
@@ -21,7 +22,7 @@ function statusArsip(nasib: string, akhirAktif: Date, akhirRetensi: Date): "Akti
 
 function validasiTanggal(value: string) {
   const tanggal = new Date(`${value}T00:00:00`);
-  if (Number.isNaN(tanggal.getTime())) throw new Error("Tanggal arsip tidak valid.");
+  if (Number.isNaN(tanggal.getTime())) throw new ValidationError("Tanggal arsip tidak valid.");
   return tanggal;
 }
 
@@ -88,10 +89,10 @@ export async function simpanArsipAksi(input: ArsipInput, id?: string): Promise<A
     await transaksi(async (tx) => {
       if (id) {
         const existing = await tx.arsip.findUnique({ where: { id } });
-        if (!existing || existing.deleted_at) throw new Error("Arsip tidak ditemukan.");
+        if (!existing || existing.deleted_at) throw new NotFoundError("Arsip tidak ditemukan.");
         if (existing.nomor_arsip !== nomor) {
           const bentrok = await tx.arsip.findUnique({ where: { nomor_arsip: nomor } });
-          if (bentrok) throw new Error("Nomor arsip sudah digunakan.");
+          if (bentrok) throw new ConflictError("Nomor arsip sudah digunakan.");
         }
 
         await tx.arsip.update({
@@ -130,7 +131,7 @@ export async function simpanArsipAksi(input: ArsipInput, id?: string): Promise<A
         await tulisLog(tx, aktor, "Edit Arsip", `Mengubah arsip ${nomor}.`, "ubah", { type: "arsip", id });
       } else {
         const bentrok = await tx.arsip.findUnique({ where: { nomor_arsip: nomor } });
-        if (bentrok) throw new Error("Nomor arsip sudah digunakan.");
+        if (bentrok) throw new ConflictError("Nomor arsip sudah digunakan.");
 
         const dibuat = await tx.arsip.create({
           data: {
@@ -171,7 +172,7 @@ export async function simpanArsipAksi(input: ArsipInput, id?: string): Promise<A
     revalidatePath("/log");
     return { ok: true, message: id ? "Arsip diperbarui." : "Arsip ditambahkan." };
   } catch (error) {
-    return { ok: false, message: pesanError(error) };
+    return gagalAksi(error, { aksi: "simpan-arsip" });
   }
 }
 
@@ -205,7 +206,7 @@ export async function hapusArsipAksi(id: string): Promise<ActionResult> {
     revalidatePath("/log");
     return { ok: true, message: "Arsip dihapus." };
   } catch (error) {
-    return { ok: false, message: pesanError(error) };
+    return gagalAksi(error, { aksi: "hapus-arsip" });
   }
 }
 
@@ -220,7 +221,7 @@ export async function simpanFolderAksi(input: FolderInput, id?: string): Promise
     await transaksi(async (tx) => {
       if (id) {
         const existing = await tx.folder.findUnique({ where: { id } });
-        if (!existing) throw new Error("Folder tidak ditemukan.");
+        if (!existing) throw new NotFoundError("Folder tidak ditemukan.");
         await tx.folder.update({
           where: { id },
           data: { nama, keterangan: input.keterangan?.trim() || null },
@@ -237,7 +238,7 @@ export async function simpanFolderAksi(input: FolderInput, id?: string): Promise
     revalidatePath("/arsip");
     return { ok: true, message: id ? "Folder diperbarui." : "Folder ditambahkan." };
   } catch (error) {
-    return { ok: false, message: pesanError(error) };
+    return gagalAksi(error, { aksi: "simpan-folder" });
   }
 }
 
@@ -259,7 +260,7 @@ export async function hapusFolderAksi(id: string): Promise<ActionResult> {
     revalidatePath("/arsip");
     return { ok: true, message: "Folder dihapus." };
   } catch (error) {
-    return { ok: false, message: pesanError(error) };
+    return gagalAksi(error, { aksi: "hapus-folder" });
   }
 }
 
@@ -276,10 +277,10 @@ export async function simpanKodeAksi(input: KodeInput, id?: string): Promise<Act
       let kodeId = id;
       if (id) {
         const existing = await tx.kodeArsip.findUnique({ where: { id } });
-        if (!existing) throw new Error("Kode arsip tidak ditemukan.");
+        if (!existing) throw new NotFoundError("Kode arsip tidak ditemukan.");
         if (existing.kode !== kode) {
           const bentrok = await tx.kodeArsip.findUnique({ where: { kode } });
-          if (bentrok) throw new Error("Kode arsip sudah digunakan.");
+          if (bentrok) throw new ConflictError("Kode arsip sudah digunakan.");
         }
         await tx.kodeArsip.update({
           where: { id },
@@ -296,7 +297,7 @@ export async function simpanKodeAksi(input: KodeInput, id?: string): Promise<Act
         await tulisLog(tx, aktor, "Edit Kode Arsip", `Mengubah kode ${kode}.`, "ubah", { type: "kode_arsip", id });
       } else {
         const bentrok = await tx.kodeArsip.findUnique({ where: { kode } });
-        if (bentrok) throw new Error("Kode arsip sudah digunakan.");
+        if (bentrok) throw new ConflictError("Kode arsip sudah digunakan.");
         const dibuat = await tx.kodeArsip.create({
           data: {
             kode,
@@ -318,7 +319,7 @@ export async function simpanKodeAksi(input: KodeInput, id?: string): Promise<Act
     revalidatePath("/arsip");
     return { ok: true, message: id ? "Kode arsip diperbarui." : "Kode arsip ditambahkan." };
   } catch (error) {
-    return { ok: false, message: pesanError(error) };
+    return gagalAksi(error, { aksi: "simpan-kode" });
   }
 }
 
@@ -340,7 +341,7 @@ export async function hapusKodeAksi(id: string): Promise<ActionResult> {
     revalidatePath("/kode-arsip");
     return { ok: true, message: "Kode arsip dihapus." };
   } catch (error) {
-    return { ok: false, message: pesanError(error) };
+    return gagalAksi(error, { aksi: "hapus-kode" });
   }
 }
 
@@ -433,7 +434,7 @@ export async function imporKodeAksi(rows: KodeInput[]): Promise<HasilImport> {
     revalidatePath("/arsip");
     return { ok: true, message: `Import selesai: ${created} baru, ${updated} diperbarui.`, created, updated };
   } catch (error) {
-    return { ok: false, message: pesanError(error) };
+    return gagalAksi(error, { aksi: "impor-kode" });
   }
 }
 
@@ -494,7 +495,7 @@ export async function tambahUsulanAksi(itemIds: string[], catatan?: string): Pro
     revalidatePath("/log");
     return { ok: true, message: `Usulan ${usulan.nomor} dibuat.` };
   } catch (error) {
-    return { ok: false, message: pesanError(error) };
+    return gagalAksi(error, { aksi: "tambah-usulan" });
   }
 }
 
@@ -526,7 +527,7 @@ export async function putuskanUsulanAksi(id: string, status: "Disetujui" | "Dito
     revalidatePath("/log");
     return { ok: true, message: `Usulan ${status.toLowerCase()}.` };
   } catch (error) {
-    return { ok: false, message: pesanError(error) };
+    return gagalAksi(error, { aksi: "putuskan-usulan" });
   }
 }
 
@@ -541,6 +542,6 @@ export async function catatLogAksi(
     await tulisLog(prisma, aktor, aksi, target, jenis, undefined, sumber);
     return { ok: true };
   } catch (error) {
-    return { ok: false, message: pesanError(error) };
+    return gagalAksi(error, { aksi: "catat-log" });
   }
 }

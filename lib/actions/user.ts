@@ -11,11 +11,13 @@ import {
 } from "@/lib/supabase-admin";
 import { revalidatePath } from "next/cache";
 import { sinkronPengguna } from "@/lib/user-sync";
+import { gagalAksi } from "@/lib/errors";
 import type { AppUser, Role } from "@/lib/types";
 
 export type HasilAksi = { ok: boolean; message: string; user?: AppUser };
 
-const ROLE_VALID: Role[] = ["Admin", "Operator", "Pimpinan"];
+// Hanya dua peran yang dapat dipilih.
+const ROLE_VALID: Role[] = ["Admin", "Operator"];
 const PASSWORD_AWAL = "EArsip#2026";
 
 async function sesiAktif() {
@@ -62,7 +64,7 @@ async function cekBentrok(username: string, email: string, id?: string) {
 }
 
 export async function simpanPengguna(
-  input: { nama: string; username: string; email: string; role: string; aktif: boolean },
+  input: { nama: string; username: string; email: string; role: string; aktif: boolean; password?: string },
   id?: string,
 ): Promise<HasilAksi> {
   const aktor = await sesiAktif();
@@ -80,6 +82,15 @@ export async function simpanPengguna(
     return { ok: false, message: "Username hanya boleh berisi huruf, angka, titik, garis bawah, atau strip." };
   }
   if (!ROLE_VALID.includes(input.role as Role)) return { ok: false, message: "Peran tidak valid." };
+
+  // Password khusus hanya saat membuat akun baru; kosong berarti memakai default.
+  const passwordBaru = (input.password ?? "").trim();
+  if (!id && passwordBaru) {
+    if (passwordBaru.length < 6) return { ok: false, message: "Password minimal 6 karakter." };
+    if (passwordBaru.toLowerCase() === "password" || passwordBaru === username) {
+      return { ok: false, message: "Password terlalu mudah ditebak. Gunakan kombinasi lain." };
+    }
+  }
 
   try {
     const bentrok = await cekBentrok(username, email, id);
@@ -127,7 +138,7 @@ export async function simpanPengguna(
       method: "POST",
       body: JSON.stringify({
         email,
-        password: PASSWORD_AWAL,
+        password: passwordBaru || PASSWORD_AWAL,
         email_confirm: true,
         user_metadata: {
           nama,
@@ -154,11 +165,13 @@ export async function simpanPengguna(
     revalidatePath("/beranda");
     return {
       ok: true,
-      message: `Pengguna ditambahkan. Password awal: ${PASSWORD_AWAL} (wajib diganti saat login pertama).`,
+      message: passwordBaru
+        ? "Pengguna ditambahkan dengan password yang Anda atur. Password wajib diganti saat login pertama."
+        : `Pengguna ditambahkan. Password awal: ${PASSWORD_AWAL} (wajib diganti saat login pertama).`,
       user: penggunaBaru,
     };
   } catch (error) {
-    return { ok: false, message: error instanceof Error ? error.message : "Gagal menyimpan pengguna." };
+    return gagalAksi(error, { aksi: "simpan-pengguna" });
   }
 }
 
@@ -190,7 +203,7 @@ export async function resetPasswordPengguna(id: string): Promise<HasilAksi> {
       user: aplikasi,
     };
   } catch (error) {
-    return { ok: false, message: error instanceof Error ? error.message : "Gagal mereset password." };
+    return gagalAksi(error, { aksi: "reset-password" });
   }
 }
 
@@ -229,7 +242,7 @@ export async function simpanProfil(input: { nama: string; email: string }): Prom
     revalidatePath("/profil");
     return { ok: true, message: "Profil berhasil diperbarui.", user: aplikasi };
   } catch (error) {
-    return { ok: false, message: error instanceof Error ? error.message : "Gagal memperbarui profil." };
+    return gagalAksi(error, { aksi: "simpan-profil" });
   }
 }
 
@@ -262,7 +275,7 @@ export async function gantiPasswordSendiri(lama: string, baru: string): Promise<
         nama: aktor.nama,
         username: String(existing.user_metadata?.username ?? aktor.email.split("@")[0]),
         email: existing.email,
-        role: aktor.role === "Admin" || aktor.role === "Pimpinan" ? aktor.role : "Operator",
+        role: aktor.role === "Admin" ? aktor.role : "Operator",
         aktif: true,
         last_login: existing.last_sign_in_at ?? "",
       },
@@ -272,6 +285,6 @@ export async function gantiPasswordSendiri(lama: string, baru: string): Promise<
     revalidatePath("/profil");
     return { ok: true, message: "Password berhasil diganti." };
   } catch (error) {
-    return { ok: false, message: error instanceof Error ? error.message : "Gagal mengganti password." };
+    return gagalAksi(error, { aksi: "ganti-password" });
   }
 }

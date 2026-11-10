@@ -42,15 +42,25 @@ export default function PengaturanPage() {
         const ext = logoFile.name.split(".").pop() ?? "";
         const unggah = await buatUploadLogoAksi(ext);
         if (!unggah.ok || !unggah.signedUrl || !unggah.path) {
-          throw new Error(unggah.message ?? "Gagal menyiapkan unggahan logo.");
+          setError(unggah.message ?? "Gagal menyiapkan unggahan logo.");
+          return;
         }
 
-        const res = await fetch(unggah.signedUrl, {
-          method: "PUT",
-          headers: { "Content-Type": logoFile.type, "x-upsert": "true" },
-          body: logoFile,
-        });
-        if (!res.ok) throw new Error("Gagal mengunggah logo ke penyimpanan.");
+        let res: Response;
+        try {
+          res = await fetch(unggah.signedUrl, {
+            method: "PUT",
+            headers: { "Content-Type": logoFile.type, "x-upsert": "true" },
+            body: logoFile,
+          });
+        } catch {
+          setError("Koneksi terputus saat mengunggah logo. Periksa jaringan lalu coba lagi.");
+          return;
+        }
+        if (!res.ok) {
+          setError("Gagal mengunggah logo ke penyimpanan. Silakan coba lagi.");
+          return;
+        }
         logo_path = unggah.path;
       }
 
@@ -64,8 +74,9 @@ export default function PengaturanPage() {
       setLogoFile(null);
       setLogoPreview("");
       toast(hasil.message ?? "Konfigurasi instansi disimpan.");
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Gagal menyimpan konfigurasi.");
+    } catch {
+      // Pesan teknis tidak ditampilkan ke user.
+      setError("Gagal menyimpan konfigurasi. Silakan coba lagi.");
     } finally {
       setMenyimpan(false);
     }

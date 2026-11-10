@@ -37,7 +37,7 @@ export default async function LoginPage({
                 <span>
                   <Icon name="shield" size={15} />
                 </span>
-                Peran Admin, Operator, dan Pimpinan dengan hak akses berbeda.
+                Peran Admin dan Operator dengan hak akses berbeda.
               </div>
               <div className="login-feature">
                 <span>

@@ -59,7 +59,7 @@ async function ambilPengguna(): Promise<AppUser[]> {
       nama: user.nama,
       username: user.username,
       email: user.email,
-      role: (user.role === "Admin" || user.role === "Pimpinan" ? user.role : "Operator") as Role,
+      role: (user.role === "Admin" ? user.role : "Operator") as Role,
       aktif: user.aktif,
       last_login: user.last_login?.toISOString() ?? "",
     }));

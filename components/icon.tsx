@@ -25,7 +25,8 @@ export type IconName =
   | "file"
   | "shield"
   | "chart"
-  | "sparkle";
+  | "sparkle"
+  | "alert";
 
 type IconProps = SVGProps<SVGSVGElement> & {
   name: IconName;
@@ -224,6 +225,13 @@ export default function Icon({ name, size = 18, ...props }: IconProps) {
         <svg {...common}>
           <path d="M12 3v4M12 17v4M3 12h4M17 12h4" />
           <path d="m6.5 6.5 2.5 2.5M15 15l2.5 2.5M17.5 6.5 15 9M9 15l-2.5 2.5" />
+        </svg>
+      );
+    case "alert":
+      return (
+        <svg {...common}>
+          <path d="M12 4 3 19h18Z" />
+          <path d="M12 10v4M12 16.8v.2" />
         </svg>
       );
     default:

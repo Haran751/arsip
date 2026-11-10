@@ -5,6 +5,7 @@ import { useMemo } from "react";
 import AnimatedNumber from "@/components/animated-number";
 import Icon from "@/components/icon";
 import StatusBadge from "@/components/status-badge";
+import WidgetErrorBoundary from "@/components/widget-error-boundary";
 import { formatTanggal, formatWaktu } from "@/lib/types";
 import { useData } from "@/lib/data-store";
 
@@ -159,135 +160,143 @@ export default function BerandaPage() {
       </div>
 
       <div className="grid grid-2">
-        <div className="card">
-          <div className="section-head">
-            <div>
-              <h2 className="h2">Arsip per Bulan</h2>
-              <p className="sub">Enam bulan terakhir dengan arsip terbanyak.</p>
+        <WidgetErrorBoundary judul="Arsip per Bulan">
+          <div className="card">
+            <div className="section-head">
+              <div>
+                <h2 className="h2">Arsip per Bulan</h2>
+                <p className="sub">Enam bulan terakhir dengan arsip terbanyak.</p>
+              </div>
+              <span className="badge badge-muted">
+                <Icon name="chart" size={12} /> {stats.total} arsip
+              </span>
             </div>
-            <span className="badge badge-muted">
-              <Icon name="chart" size={12} /> {stats.total} arsip
-            </span>
-          </div>
-          {!ready ? (
-            <div className="skeleton" style={{ height: 186, borderRadius: 16 }} />
-          ) : bulanan.items.length ? (
-            <div className="chart">
-              {bulanan.items.map((item) => (
-                <div key={item.key} className="chart-col">
-                  <div
-                    className="chart-bar"
-                    style={{ height: `${Math.max(6, (item.count / bulanan.max) * 100)}%` }}
-                    title={`${item.label} ${item.year}: ${item.count} arsip`}
-                  >
-                    <span>{item.count}</span>
+            {!ready ? (
+              <div className="skeleton" style={{ height: 186, borderRadius: 16 }} />
+            ) : bulanan.items.length ? (
+              <div className="chart">
+                {bulanan.items.map((item) => (
+                  <div key={item.key} className="chart-col">
+                    <div
+                      className="chart-bar"
+                      style={{ height: `${Math.max(6, (item.count / bulanan.max) * 100)}%` }}
+                      title={`${item.label} ${item.year}: ${item.count} arsip`}
+                    >
+                      <span>{item.count}</span>
+                    </div>
+                    <span className="chart-label">{item.label}</span>
                   </div>
-                  <span className="chart-label">{item.label}</span>
-                </div>
-              ))}
-            </div>
-          ) : (
-            <div className="empty">Belum ada data arsip untuk ditampilkan.</div>
-          )}
-        </div>
+                ))}
+              </div>
+            ) : (
+              <div className="empty">Belum ada data arsip untuk ditampilkan.</div>
+            )}
+          </div>
+        </WidgetErrorBoundary>
 
-        <div className="card">
-          <div className="section-head">
-            <div>
-              <h2 className="h2">Aktivitas Terbaru</h2>
-              <p className="sub">Jejak audit terakhir yang tercatat.</p>
+        <WidgetErrorBoundary judul="Aktivitas Terbaru">
+          <div className="card">
+            <div className="section-head">
+              <div>
+                <h2 className="h2">Aktivitas Terbaru</h2>
+                <p className="sub">Jejak audit terakhir yang tercatat.</p>
+              </div>
             </div>
-          </div>
-          <ul className="timeline">
-            {logTerbaru.map((log) => (
-              <li key={log.id}>
-                <span className={`tl-icon ${jenisClass[log.jenis] ?? ""}`}>{log.jenis.slice(0, 2).toUpperCase()}</span>
-                <div className="tl-body">
-                  <div className="tl-title">{log.aksi}</div>
-                  <div className="tl-meta">
-                    {log.user} - {formatWaktu(log.waktu)}
+            <ul className="timeline">
+              {logTerbaru.map((log) => (
+                <li key={log.id}>
+                  <span className={`tl-icon ${jenisClass[log.jenis] ?? ""}`}>{log.jenis.slice(0, 2).toUpperCase()}</span>
+                  <div className="tl-body">
+                    <div className="tl-title">{log.aksi}</div>
+                    <div className="tl-meta">
+                      {log.user} - {formatWaktu(log.waktu)}
+                    </div>
                   </div>
-                </div>
-              </li>
-            ))}
-          </ul>
-          {logTerbaru.length === 0 ? <div className="empty">Belum ada aktivitas.</div> : null}
-        </div>
+                </li>
+              ))}
+            </ul>
+            {logTerbaru.length === 0 ? <div className="empty">Belum ada aktivitas.</div> : null}
+          </div>
+        </WidgetErrorBoundary>
       </div>
 
       <div className="grid grid-2">
-        <div className="card">
-          <div className="section-head">
-            <div>
-              <h2 className="h2">Arsip Terbaru</h2>
-              <p className="sub">Lima arsip yang terakhir ditambahkan.</p>
-            </div>
-            <Link href="/arsip" className="btn btn-ghost btn-sm">
-              Lihat semua
-            </Link>
-          </div>
-          <div className="table-wrap">
-            <table>
-              <thead>
-                <tr>
-                  <th>Judul</th>
-                  <th>Kode</th>
-                  <th>Disimpan Sampai</th>
-                </tr>
-              </thead>
-              <tbody>
-                {arsipTerbaru.map((arsip) => (
-                  <tr key={arsip.id}>
-                    <td>
-                      <div className="cell-title">{arsip.judul}</div>
-                      <div className="cell-sub mono">{arsip.nomor_arsip}</div>
-                    </td>
-                    <td>
-                      <span className="badge badge-muted">{arsip.kode}</span>
-                    </td>
-                    <td>
-                      <StatusBadge status={arsip.status_retensi} />
-                      <div className="cell-sub">{formatTanggal(arsip.akhir_retensi)}</div>
-                    </td>
-                  </tr>
-                ))}
-                {arsipTerbaru.length === 0 ? (
-                  <tr>
-                    <td colSpan={3}>
-                      <div className="empty">Belum ada arsip.</div>
-                    </td>
-                  </tr>
-                ) : null}
-              </tbody>
-            </table>
-          </div>
-        </div>
-
-        <div className="card">
-          <div className="section-head">
-            <div>
-              <h2 className="h2">Menjelang Retensi</h2>
-              <p className="sub">Arsip yang perlu ditinjau dalam waktu dekat.</p>
-            </div>
-            <Link href="/penyusutan" className="btn btn-ghost btn-sm">
-              Tinjau
-            </Link>
-          </div>
-          <div className="stack" style={{ gap: 10 }}>
-            {menjelang.map((arsip) => (
-              <div key={arsip.id} className="spread">
-                <div>
-                  <div className="cell-title">{arsip.judul}</div>
-                  <div className="cell-sub">
-                    {arsip.kode} - akhir retensi {formatTanggal(arsip.akhir_retensi)}
-                  </div>
-                </div>
-                <StatusBadge status={arsip.status_retensi} />
+        <WidgetErrorBoundary judul="Arsip Terbaru">
+          <div className="card">
+            <div className="section-head">
+              <div>
+                <h2 className="h2">Arsip Terbaru</h2>
+                <p className="sub">Lima arsip yang terakhir ditambahkan.</p>
               </div>
-            ))}
-            {menjelang.length === 0 ? <div className="empty">Tidak ada arsip mendekati retensi.</div> : null}
+              <Link href="/arsip" className="btn btn-ghost btn-sm">
+                Lihat semua
+              </Link>
+            </div>
+            <div className="table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Judul</th>
+                    <th>Kode</th>
+                    <th>Disimpan Sampai</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {arsipTerbaru.map((arsip) => (
+                    <tr key={arsip.id}>
+                      <td>
+                        <div className="cell-title">{arsip.judul}</div>
+                        <div className="cell-sub mono">{arsip.nomor_arsip}</div>
+                      </td>
+                      <td>
+                        <span className="badge badge-muted">{arsip.kode}</span>
+                      </td>
+                      <td>
+                        <StatusBadge status={arsip.status_retensi} />
+                        <div className="cell-sub">{formatTanggal(arsip.akhir_retensi)}</div>
+                      </td>
+                    </tr>
+                  ))}
+                  {arsipTerbaru.length === 0 ? (
+                    <tr>
+                      <td colSpan={3}>
+                        <div className="empty">Belum ada arsip.</div>
+                      </td>
+                    </tr>
+                  ) : null}
+                </tbody>
+              </table>
+            </div>
           </div>
-        </div>
+        </WidgetErrorBoundary>
+
+        <WidgetErrorBoundary judul="Menjelang Retensi">
+          <div className="card">
+            <div className="section-head">
+              <div>
+                <h2 className="h2">Menjelang Retensi</h2>
+                <p className="sub">Arsip yang perlu ditinjau dalam waktu dekat.</p>
+              </div>
+              <Link href="/penyusutan" className="btn btn-ghost btn-sm">
+                Tinjau
+              </Link>
+            </div>
+            <div className="stack" style={{ gap: 10 }}>
+              {menjelang.map((arsip) => (
+                <div key={arsip.id} className="spread">
+                  <div>
+                    <div className="cell-title">{arsip.judul}</div>
+                    <div className="cell-sub">
+                      {arsip.kode} - akhir retensi {formatTanggal(arsip.akhir_retensi)}
+                    </div>
+                  </div>
+                  <StatusBadge status={arsip.status_retensi} />
+                </div>
+              ))}
+              {menjelang.length === 0 ? <div className="empty">Tidak ada arsip mendekati retensi.</div> : null}
+            </div>
+          </div>
+        </WidgetErrorBoundary>
       </div>
     </>
   );

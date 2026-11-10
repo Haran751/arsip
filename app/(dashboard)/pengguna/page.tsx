@@ -6,7 +6,7 @@ import TombolMemuat from "@/components/loading-button";
 import { formatWaktu, inisial, type AppUser, type Role, type UserInput } from "@/lib/types";
 import { useData } from "@/lib/data-store";
 
-const ROLES: Role[] = ["Admin", "Operator", "Pimpinan"];
+const ROLES: Role[] = ["Admin", "Operator"];
 
 type FormState = {
   nama: string;
@@ -14,6 +14,7 @@ type FormState = {
   email: string;
   role: Role;
   aktif: boolean;
+  password: string;
 };
 
 export default function PenggunaPage() {
@@ -30,6 +31,7 @@ export default function PenggunaPage() {
     email: "",
     role: "Operator",
     aktif: true,
+    password: "",
   });
   const [formError, setFormError] = useState("");
   const [menyimpan, setMenyimpan] = useState(false);
@@ -47,14 +49,22 @@ export default function PenggunaPage() {
 
   const bukaTambah = () => {
     setEditing(null);
-    setForm({ nama: "", username: "", email: "", role: "Operator", aktif: true });
+    setForm({ nama: "", username: "", email: "", role: "Operator", aktif: true, password: "" });
     setFormError("");
     setFormOpen(true);
   };
 
   const bukaUbah = (user: AppUser) => {
     setEditing(user);
-    setForm({ nama: user.nama, username: user.username, email: user.email, role: user.role, aktif: user.aktif });
+    // Saat mengubah, role lama di luar pilihan dikembalikan ke Operator.
+    setForm({
+      nama: user.nama,
+      username: user.username,
+      email: user.email,
+      role: ROLES.includes(user.role) ? user.role : "Operator",
+      aktif: user.aktif,
+      password: "",
+    });
     setFormError("");
     setFormOpen(true);
   };
@@ -67,6 +77,7 @@ export default function PenggunaPage() {
       email: form.email,
       role: form.role,
       aktif: form.aktif,
+      ...(editing ? {} : { password: form.password }),
     };
     setMenyimpan(true);
     try {
@@ -290,6 +301,24 @@ export default function PenggunaPage() {
                 required
               />
             </div>
+            {!editing ? (
+              <div className="field">
+                <label htmlFor="password-pengguna">Password awal</label>
+                <input
+                  id="password-pengguna"
+                  type="text"
+                  className="input mono"
+                  autoComplete="off"
+                  placeholder="Kosongkan untuk password default"
+                  value={form.password}
+                  onChange={(event) => setForm({ ...form, password: event.target.value })}
+                />
+                <p className="field-hint">
+                  Minimal 6 karakter. Jika dikosongkan, akun memakai password default dan pengguna wajib menggantinya
+                  saat login pertama.
+                </p>
+              </div>
+            ) : null}
             <div className="field">
               <label htmlFor="peran-pengguna">Peran</label>
               <select

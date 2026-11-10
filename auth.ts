@@ -21,7 +21,7 @@ type HasilLogin = {
 
 type TokenAplikasi = {
   id?: string;
-  role?: "Admin" | "Operator" | "Pimpinan";
+  role?: "Admin" | "Operator";
   aktif?: boolean;
   must_change_password?: boolean;
   name?: string | null;

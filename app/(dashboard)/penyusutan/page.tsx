@@ -121,7 +121,7 @@ export default function PenyusutanPage() {
             className="btn"
             onClick={() => bukaForm()}
             disabled={!canManage || eligible.length === 0}
-            title={!canManage ? "Pimpinan hanya dapat melihat" : eligible.length === 0 ? "Tidak ada arsip yang dapat diusulkan" : ""}
+            title={!canManage ? "Akun Anda hanya dapat melihat" : eligible.length === 0 ? "Tidak ada arsip yang dapat diusulkan" : ""}
           >
             + Ajukan Penyusutan
           </button>

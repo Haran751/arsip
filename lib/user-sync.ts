@@ -1,11 +1,14 @@
 import { prisma } from "./prisma";
+import { emailUntukUsername } from "./supabase-admin";
 import type { AppUser } from "./types";
 
 export async function sinkronPengguna(user: AppUser, mustChangePassword = false) {
+  // Layanan autentikasi tetap butuh email internal; dibuat otomatis dari username.
+  const email = emailUntukUsername(user.username);
   const data = {
     nama: user.nama,
     username: user.username,
-    email: user.email,
+    email,
     role: user.role,
     aktif: user.aktif,
     last_login: new Date(),
@@ -20,7 +23,7 @@ export async function sinkronPengguna(user: AppUser, mustChangePassword = false)
 
   // Baris lama dengan username/email sama bisa berasal dari seed sebelumnya.
   const bentrok = await prisma.user.findFirst({
-    where: { OR: [{ username: user.username }, { email: user.email }] },
+    where: { OR: [{ username: user.username }, { email }] },
   });
 
   if (bentrok && bentrok.id !== user.id) {

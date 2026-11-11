@@ -4,6 +4,7 @@ import { auth, unstable_update } from "@/auth";
 import {
   ambilPenggunaAuth,
   daftarPenggunaAuth,
+  emailUntukUsername,
   keUserAplikasi,
   panggilAuth,
   verifikasiPassword,
@@ -33,8 +34,8 @@ async function sesiAktif() {
   return {
     id: aplikasi.id,
     role: aplikasi.role as string,
-    email: aplikasi.email,
     nama: aplikasi.nama,
+    username: aplikasi.username,
   };
 }
 
@@ -52,19 +53,19 @@ async function cekBentrok(username: string, email: string, id?: string) {
   const users = await daftarPenggunaAuth();
   const lain = users.filter((user) => user.id !== id);
 
-  const emailBentrok = lain.find((user) => (user.email ?? "").toLowerCase() === email);
-  if (emailBentrok) return "Email sudah digunakan akun lain.";
-
   const usernameBentrok = lain.find(
     (user) => String(user.user_metadata?.username ?? "").toLowerCase() === username,
   );
   if (usernameBentrok) return "Username sudah digunakan.";
 
+  const emailBentrok = lain.find((user) => (user.email ?? "").toLowerCase() === email);
+  if (emailBentrok) return "Username sudah digunakan.";
+
   return null;
 }
 
 export async function simpanPengguna(
-  input: { nama: string; username: string; email: string; role: string; aktif: boolean; password?: string },
+  input: { nama: string; username: string; role: string; aktif: boolean; password?: string },
   id?: string,
 ): Promise<HasilAksi> {
   const aktor = await sesiAktif();
@@ -74,10 +75,10 @@ export async function simpanPengguna(
 
   const nama = input.nama.trim();
   const username = input.username.trim().toLowerCase();
-  const email = input.email.trim().toLowerCase();
+  // Layanan autentikasi tetap butuh email internal; dibuat otomatis dari username.
+  const email = emailUntukUsername(username);
 
-  if (!nama || !username || !email) return { ok: false, message: "Nama, username, dan email wajib diisi." };
-  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return { ok: false, message: "Format email tidak valid." };
+  if (!nama || !username) return { ok: false, message: "Nama dan username wajib diisi." };
   if (!/^[a-z0-9._-]+$/.test(username)) {
     return { ok: false, message: "Username hanya boleh berisi huruf, angka, titik, garis bawah, atau strip." };
   }
@@ -207,29 +208,20 @@ export async function resetPasswordPengguna(id: string): Promise<HasilAksi> {
   }
 }
 
-export async function simpanProfil(input: { nama: string; email: string }): Promise<HasilAksi> {
+export async function simpanProfil(input: { nama: string }): Promise<HasilAksi> {
   const aktor = await sesiAktif();
   if (!aktor) return { ok: false, message: "Sesi tidak valid. Silakan login ulang." };
 
   const nama = input.nama.trim();
-  const email = input.email.trim().toLowerCase();
-  if (!nama || !email) return { ok: false, message: "Nama dan email wajib diisi." };
-  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return { ok: false, message: "Format email tidak valid." };
+  if (!nama) return { ok: false, message: "Nama wajib diisi." };
 
   try {
-    const bentrok = await daftarPenggunaAuth().then((users) =>
-      users.find((user) => user.id !== aktor.id && (user.email ?? "").toLowerCase() === email),
-    );
-    if (bentrok) return { ok: false, message: "Email sudah digunakan akun lain." };
-
     const existing = await ambilPenggunaAuth(aktor.id);
     if (!existing) return { ok: false, message: "Pengguna tidak ditemukan." };
 
     const user = await panggilAuth<SupabaseAuthUser>(`/auth/v1/admin/users/${aktor.id}`, {
       method: "PUT",
       body: JSON.stringify({
-        email,
-        email_confirm: true,
         user_metadata: { ...(existing.user_metadata ?? {}), nama },
       }),
     });
@@ -273,8 +265,7 @@ export async function gantiPasswordSendiri(lama: string, baru: string): Promise<
       {
         id: aktor.id,
         nama: aktor.nama,
-        username: String(existing.user_metadata?.username ?? aktor.email.split("@")[0]),
-        email: existing.email,
+        username: String(existing.user_metadata?.username ?? aktor.username),
         role: aktor.role === "Admin" ? aktor.role : "Operator",
         aktif: true,
         last_login: existing.last_sign_in_at ?? "",

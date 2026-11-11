@@ -10,7 +10,7 @@ import { useData } from "@/lib/data-store";
 export default function ProfilPage() {
   const { data, currentUser, updateProfile, toast } = useData();
   const [editOpen, setEditOpen] = useState(false);
-  const [form, setForm] = useState({ nama: currentUser.nama, email: currentUser.email });
+  const [form, setForm] = useState({ nama: currentUser.nama });
   const [formError, setFormError] = useState("");
   const [menyimpan, setMenyimpan] = useState(false);
 
@@ -24,7 +24,7 @@ export default function ProfilPage() {
   );
 
   const bukaEdit = () => {
-    setForm({ nama: currentUser.nama, email: currentUser.email });
+    setForm({ nama: currentUser.nama });
     setFormError("");
     setEditOpen(true);
   };
@@ -33,7 +33,7 @@ export default function ProfilPage() {
     event.preventDefault();
     setMenyimpan(true);
     try {
-      const hasil = await updateProfile({ nama: form.nama, email: form.email });
+      const hasil = await updateProfile({ nama: form.nama });
       if (!hasil.ok) {
         setFormError(hasil.message ?? "Gagal memperbarui profil.");
         return;
@@ -52,9 +52,7 @@ export default function ProfilPage() {
           <span className="avatar avatar-lg">{inisial(currentUser.nama)}</span>
           <div style={{ flex: 1, minWidth: 220 }}>
             <h2 className="h2">{currentUser.nama}</h2>
-            <p className="sub">
-              {currentUser.role} - {currentUser.email}
-            </p>
+            <p className="sub">{currentUser.role}</p>
             <div className="row" style={{ marginTop: 10 }}>
               <span className={`badge ${currentUser.aktif ? "badge-aktif" : "badge-danger"}`}>
                 {currentUser.aktif ? "Akun aktif" : "Akun nonaktif"}
@@ -86,8 +84,6 @@ export default function ProfilPage() {
             <dd>{currentUser.nama}</dd>
             <dt>Username</dt>
             <dd className="mono">{currentUser.username}</dd>
-            <dt>Email</dt>
-            <dd>{currentUser.email}</dd>
             <dt>Peran</dt>
             <dd>{currentUser.role}</dd>
             <dt>Status</dt>
@@ -185,17 +181,6 @@ export default function ProfilPage() {
                 className="input"
                 value={form.nama}
                 onChange={(event) => setForm({ ...form, nama: event.target.value })}
-                required
-              />
-            </div>
-            <div className="field field-full">
-              <label htmlFor="profil-email">Email</label>
-              <input
-                id="profil-email"
-                type="email"
-                className="input"
-                value={form.email}
-                onChange={(event) => setForm({ ...form, email: event.target.value })}
                 required
               />
             </div>

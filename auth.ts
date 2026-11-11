@@ -69,7 +69,6 @@ export const { handlers, auth, signIn, signOut, unstable_update } = NextAuth({
         return {
           id: user.id,
           name: user.nama,
-          email: user.email,
           role: user.role,
           aktif: user.aktif,
           must_change_password: Boolean(authUser.user_metadata?.must_change_password),

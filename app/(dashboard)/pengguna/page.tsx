@@ -11,7 +11,6 @@ const ROLES: Role[] = ["Admin", "Operator"];
 type FormState = {
   nama: string;
   username: string;
-  email: string;
   role: Role;
   aktif: boolean;
   password: string;
@@ -28,7 +27,6 @@ export default function PenggunaPage() {
   const [form, setForm] = useState<FormState>({
     nama: "",
     username: "",
-    email: "",
     role: "Operator",
     aktif: true,
     password: "",
@@ -40,7 +38,7 @@ export default function PenggunaPage() {
   const filtered = useMemo(() => {
     const kata = cari.trim().toLowerCase();
     return data.users.filter((user) => {
-      const cocokCari = !kata || `${user.nama} ${user.username} ${user.email}`.toLowerCase().includes(kata);
+      const cocokCari = !kata || `${user.nama} ${user.username}`.toLowerCase().includes(kata);
       const cocokPeran = !filterPeran || user.role === filterPeran;
       const cocokStatus = !filterStatus || (filterStatus === "aktif" ? user.aktif : !user.aktif);
       return cocokCari && cocokPeran && cocokStatus;
@@ -49,7 +47,7 @@ export default function PenggunaPage() {
 
   const bukaTambah = () => {
     setEditing(null);
-    setForm({ nama: "", username: "", email: "", role: "Operator", aktif: true, password: "" });
+    setForm({ nama: "", username: "", role: "Operator", aktif: true, password: "" });
     setFormError("");
     setFormOpen(true);
   };
@@ -60,7 +58,6 @@ export default function PenggunaPage() {
     setForm({
       nama: user.nama,
       username: user.username,
-      email: user.email,
       role: ROLES.includes(user.role) ? user.role : "Operator",
       aktif: user.aktif,
       password: "",
@@ -74,7 +71,6 @@ export default function PenggunaPage() {
     const input: UserInput = {
       nama: form.nama,
       username: form.username,
-      email: form.email,
       role: form.role,
       aktif: form.aktif,
       ...(editing ? {} : { password: form.password }),
@@ -149,7 +145,7 @@ export default function PenggunaPage() {
         <div className="toolbar">
           <input
             className="input input-search"
-            placeholder="Cari nama, username, atau email..."
+            placeholder="Cari nama atau username..."
             value={cari}
             onChange={(event) => setCari(event.target.value)}
           />
@@ -180,7 +176,6 @@ export default function PenggunaPage() {
               <tr>
                 <th>Nama</th>
                 <th>Username</th>
-                <th>Email</th>
                 <th>Peran</th>
                 <th>Status</th>
                 <th>Login Terakhir</th>
@@ -202,7 +197,6 @@ export default function PenggunaPage() {
                     </div>
                   </td>
                   <td className="mono">{user.username}</td>
-                  <td>{user.email}</td>
                   <td>
                     <span className={`badge ${user.role === "Admin" ? "badge-aktif" : "badge-muted"}`}>{user.role}</span>
                   </td>
@@ -231,7 +225,7 @@ export default function PenggunaPage() {
               ))}
               {filtered.length === 0 ? (
                 <tr>
-                  <td colSpan={7}>
+                  <td colSpan={6}>
                     <div className="empty">Tidak ada pengguna yang cocok.</div>
                   </td>
                 </tr>
@@ -280,24 +274,13 @@ export default function PenggunaPage() {
                 required
               />
             </div>
-            <div className="field">
+            <div className="field field-full">
               <label htmlFor="username-pengguna">Username</label>
               <input
                 id="username-pengguna"
                 className="input mono"
                 value={form.username}
                 onChange={(event) => setForm({ ...form, username: event.target.value.toLowerCase() })}
-                required
-              />
-            </div>
-            <div className="field">
-              <label htmlFor="email-pengguna">Email</label>
-              <input
-                id="email-pengguna"
-                type="email"
-                className="input"
-                value={form.email}
-                onChange={(event) => setForm({ ...form, email: event.target.value })}
                 required
               />
             </div>

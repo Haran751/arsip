@@ -126,7 +126,6 @@ export function keUserAplikasi(user: SupabaseAuthUser): AppUser | null {
     id: user.id,
     nama: String(meta.nama ?? username),
     username,
-    email,
     role: roleValid,
     aktif: meta.aktif === false ? false : !banned,
     last_login: user.last_sign_in_at ?? "",

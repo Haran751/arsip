@@ -95,7 +95,7 @@ type DataContextValue = {
   saveUser: (input: UserInput, id?: string) => Promise<UserActionResult>;
   saveInstansi: (input: Instansi) => Promise<ActionResult>;
   resetUserPassword: (id: string) => Promise<UserActionResult>;
-  updateProfile: (patch: Pick<UserInput, "nama" | "email">) => Promise<UserActionResult>;
+  updateProfile: (patch: Pick<UserInput, "nama">) => Promise<UserActionResult>;
   changePassword: (lama: string, baru: string) => Promise<ActionResult>;
   catatLog: (aksi: string, target: string, jenis: LogEntry["jenis"], sumber?: LogEntry["sumber"]) => Promise<void>;
   refreshData: () => Promise<AppData | null>;
@@ -308,10 +308,10 @@ export function DataProvider({
   );
 
   const updateProfile = useCallback(
-    async (patch: Pick<UserInput, "nama" | "email">): Promise<UserActionResult> => {
-      const hasil = await simpanProfil({ nama: patch.nama, email: patch.email });
+    async (patch: Pick<UserInput, "nama">): Promise<UserActionResult> => {
+      const hasil = await simpanProfil({ nama: patch.nama });
       if (hasil.ok) {
-        await catatLogAksi("Edit Profil", `${patch.nama} - ${patch.email}`, "ubah");
+        await catatLogAksi("Edit Profil", patch.nama, "ubah");
         await refreshData();
       }
       return hasil as UserActionResult;

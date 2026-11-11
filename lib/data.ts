@@ -1,5 +1,5 @@
 import { prisma } from "./prisma";
-import { daftarPenggunaAplikasi, keUserAplikasi } from "./supabase-admin";
+import { daftarPenggunaAplikasi } from "./supabase-admin";
 import type { AppUser, Arsip, Folder, Instansi, KodeArsip, LogEntry, Role, StatusRetensi, Usulan } from "./types";
 
 export type AppData = {
@@ -58,7 +58,6 @@ async function ambilPengguna(): Promise<AppUser[]> {
       id: user.id,
       nama: user.nama,
       username: user.username,
-      email: user.email,
       role: (user.role === "Admin" ? user.role : "Operator") as Role,
       aktif: user.aktif,
       last_login: user.last_login?.toISOString() ?? "",
@@ -164,20 +163,4 @@ export async function ambilDataAplikasi(): Promise<AppData> {
     })),
     instansi: keInstansi(pengaturan?.nilai),
   };
-}
-
-export async function cariPenggunaAplikasi(id: string): Promise<AppUser | null> {
-  const user = await prisma.user.findUnique({ where: { id } });
-  if (!user) return null;
-  const aplikasi = keUserAplikasi({
-    id: user.id,
-    email: user.email,
-    user_metadata: {
-      nama: user.nama,
-      username: user.username,
-      role: user.role,
-      aktif: user.aktif,
-    },
-  });
-  return aplikasi ? { ...aplikasi, role: aplikasi.role as Role } : null;
 }

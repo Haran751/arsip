@@ -4,7 +4,6 @@ export type AppUser = {
   id: string;
   nama: string;
   username: string;
-  email: string;
   role: Role;
   aktif: boolean;
   last_login: string;
@@ -135,7 +134,6 @@ export type KodeInput = {
 export type UserInput = {
   nama: string;
   username: string;
-  email: string;
   role: Role;
   aktif: boolean;
   password?: string;
@@ -148,22 +146,28 @@ export type ActionResult = {
   fieldErrors?: Record<string, string>;
 };
 
+// Nilai kosong (mis. pengguna belum pernah login) atau tidak valid tidak boleh
+// melempar RangeError dari Intl; tampilkan "-" agar halaman tetap aman.
 export function formatTanggal(value: string) {
+  const tanggal = new Date(value);
+  if (!value || Number.isNaN(tanggal.getTime())) return "-";
   return new Intl.DateTimeFormat("id-ID", {
     day: "2-digit",
     month: "short",
     year: "numeric",
-  }).format(new Date(value));
+  }).format(tanggal);
 }
 
 export function formatWaktu(value: string) {
+  const tanggal = new Date(value);
+  if (!value || Number.isNaN(tanggal.getTime())) return "-";
   return new Intl.DateTimeFormat("id-ID", {
     day: "2-digit",
     month: "short",
     year: "numeric",
     hour: "2-digit",
     minute: "2-digit",
-  }).format(new Date(value));
+  }).format(tanggal);
 }
 
 export function inisial(nama: string) {

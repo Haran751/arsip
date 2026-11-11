@@ -191,7 +191,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
                     <span className="avatar avatar-md">{inisial(user.nama)}</span>
                     <div>
                       <strong>{user.nama}</strong>
-                      <small>{user.email}</small>
+                      <small className="mono">@{user.username}</small>
                     </div>
                   </div>
                   <Link href="/profil" onClick={() => setMenuOpen(false)}>

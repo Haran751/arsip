@@ -21,7 +21,7 @@ export async function sesiPengguna(): Promise<Aktor> {
   const role: Role = session.user.role === "Admin" ? session.user.role : "Operator";
   return {
     id: session.user.id,
-    nama: session.user.name ?? session.user.email ?? "Pengguna",
+    nama: session.user.name ?? "Pengguna",
     role,
   };
 }

@@ -1,7 +1,7 @@
 ﻿import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
-import { keInstansi } from "@/lib/data";
+import { ambilInstansi } from "@/lib/data";
 import { createSignedDownloadUrl } from "@/lib/storage";
 import { bolehKelola, sesiPengguna, tulisLog } from "@/lib/actions/guard";
 import { ForbiddenError, ValidationError, withApiErrorHandling } from "@/lib/errors";
@@ -94,8 +94,7 @@ const arsip: SumberEkspor[] = daftar.map((item) => ({
   nomor_boks: item.nomor_boks,
 }));
 
-const pengaturan = await prisma.pengaturan.findUnique({ where: { kunci: "instansi" } });
-const instansi = keInstansi(pengaturan?.nilai);
+const instansi = await ambilInstansi(aktor.id);
 const logo = await ambilLogo(instansi.logo_path);
 
 const berkas = await buatBerkasEkspor(jenis, format, arsip, instansi, { logo, jumlahItem });

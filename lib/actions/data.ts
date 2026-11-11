@@ -56,9 +56,9 @@ function detailEkspor(input: ArsipInput) {
 }
 
 export async function muatDataAksi() {
-  await sesiPengguna();
+  const aktor = await sesiPengguna();
   const { ambilDataAplikasi } = await import("@/lib/data");
-  return ambilDataAplikasi();
+  return ambilDataAplikasi(aktor.id);
 }
 
 export async function simpanArsipAksi(input: ArsipInput, id?: string): Promise<ActionResult> {
@@ -466,6 +466,14 @@ export async function tambahUsulanAksi(itemIds: string[], catatan?: string): Pro
       include: { kode_arsip: true },
     });
     if (arsip.length !== itemIds.length) return { ok: false, message: "Sebagian arsip tidak ditemukan." };
+
+    const terkunci = await prisma.usulanPemusnahanItem.findMany({
+      where: { arsip_id: { in: itemIds }, usulan: { status: { not: "Ditolak" } } },
+      select: { arsip_id: true },
+    });
+    if (terkunci.length) {
+      return { ok: false, message: `${terkunci.length} arsip sudah masuk usulan penyusutan lain.` };
+    }
 
     const tahun = new Date().getFullYear();
     const awal = new Date(tahun, 0, 1);

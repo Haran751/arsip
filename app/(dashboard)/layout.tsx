@@ -19,7 +19,7 @@ async function IsiDashboard({ children }: { children: React.ReactNode }) {
   if (!user) redirect("/login");
 
   await sinkronPengguna(user, false).catch(() => undefined);
-  const data = await ambilDataAplikasi();
+  const data = await ambilDataAplikasi(user.id);
 
   return (
     <DataProvider initialUser={user} initialData={data}>

@@ -53,7 +53,9 @@ export default function GantiPasswordPage() {
     <main className="login-page">
       <div className="login-card">
         <div className="login-brand">
-          <span className="brand-mark">EA</span>
+          <span className="brand-mark">
+            <img src="/logo-kementerian-kesehatan.webp" alt="Logo Kementerian Kesehatan" />
+          </span>
           <div>
             <div className="brand-name" style={{ color: "var(--foreground)" }}>
               E-Arsip

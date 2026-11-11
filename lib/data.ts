@@ -21,6 +21,19 @@ export const INSTANSI_KOSONG: Instansi = {
   logo_path: "",
 };
 
+export function kunciInstansi(userId?: string) {
+  return userId ? `instansi:${userId}` : "instansi";
+}
+
+export async function ambilInstansi(userId?: string): Promise<Instansi> {
+  if (userId) {
+    const perAkun = await prisma.pengaturan.findUnique({ where: { kunci: kunciInstansi(userId) } });
+    if (perAkun) return keInstansi(perAkun.nilai);
+  }
+  const global = await prisma.pengaturan.findUnique({ where: { kunci: kunciInstansi() } });
+  return keInstansi(global?.nilai);
+}
+
 export function keInstansi(nilai: unknown): Instansi {
   const data = (nilai ?? {}) as Record<string, unknown>;
   const teks = (kunci: string) => String(data[kunci] ?? "");
@@ -65,8 +78,8 @@ async function ambilPengguna(): Promise<AppUser[]> {
   }
 }
 
-export async function ambilDataAplikasi(): Promise<AppData> {
-  const [arsip, folders, kodeArsip, usulan, logs, users, pengaturan] = await Promise.all([
+export async function ambilDataAplikasi(userId?: string): Promise<AppData> {
+  const [arsip, folders, kodeArsip, usulan, logs, users, instansi] = await Promise.all([
     prisma.arsip.findMany({
       where: { deleted_at: null },
       include: { kode_arsip: true, pembuat: true },
@@ -84,7 +97,7 @@ export async function ambilDataAplikasi(): Promise<AppData> {
       take: 500,
     }),
     ambilPengguna(),
-    prisma.pengaturan.findUnique({ where: { kunci: "instansi" } }),
+    ambilInstansi(userId),
   ]);
 
   const jumlahPerKode = new Map<string, number>();
@@ -161,6 +174,6 @@ export async function ambilDataAplikasi(): Promise<AppData> {
       sumber: item.sumber === "Database" ? "Database" : "Aplikasi",
       jenis: jenisLog(item.data_json),
     })),
-    instansi: keInstansi(pengaturan?.nilai),
+    instansi,
   };
 }

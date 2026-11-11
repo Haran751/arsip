@@ -156,11 +156,20 @@ export function DataProvider({
     [data.arsip],
   );
 
+  const arsipTerkunci = useMemo(() => {
+    const ids = new Set<string>();
+    for (const usulan of data.usulan) {
+      if (usulan.status === "Ditolak") continue;
+      for (const id of usulan.item_ids ?? []) ids.add(id);
+    }
+    return ids;
+  }, [data.usulan]);
+
   const dueArsip = useMemo(() => {
     return data.arsip
-      .filter((arsip) => arsip.status_retensi === "Inaktif")
+      .filter((arsip) => arsip.status_retensi === "Inaktif" && !arsipTerkunci.has(arsip.id))
       .sort((a, b) => a.akhir_retensi.localeCompare(b.akhir_retensi));
-  }, [data.arsip]);
+  }, [data.arsip, arsipTerkunci]);
 
   const stats = useMemo(
     () => ({

@@ -18,7 +18,7 @@ function subscribeMotion(onChange: () => void) {
 
 export default function PengaturanPage() {
   const { reduceMotion, setReduceMotion } = usePreferences();
-  const { currentUser, isAdmin, data, saveInstansi, refreshData, toast } = useData();
+  const { currentUser, data, saveInstansi, refreshData, toast } = useData();
   const sistem = useSyncExternalStore(
     subscribeMotion,
     () => window.matchMedia(MOTION_QUERY).matches,
@@ -142,15 +142,14 @@ export default function PengaturanPage() {
         </div>
       </div>
 
-      {isAdmin ? (
-        <div className="card">
+      <div className="card">
           <div className="section-head">
             <div>
               <h2 className="h2">Konfigurasi Instansi & Logo</h2>
-              <p className="sub">Data ini dipakai pada kepala dan kaki laporan ekspor PDF/DOCX.</p>
+              <p className="sub">Konfigurasi khusus akun Anda, dipakai pada laporan ekspor PDF/DOCX yang Anda buat.</p>
             </div>
             <span className="badge badge-aktif">
-              <Icon name="settings" size={12} /> Admin
+              <Icon name="settings" size={12} /> {currentUser.role}
             </span>
           </div>
 
@@ -268,8 +267,7 @@ export default function PengaturanPage() {
               </TombolMemuat>
             </div>
           </form>
-        </div>
-      ) : null}
+      </div>
 
       <div className="card">
         <div className="section-head">

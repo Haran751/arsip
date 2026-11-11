@@ -78,7 +78,9 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
     <div className="app">
       <aside className="sidebar" aria-label="Navigasi utama">
         <Link href="/beranda" className="brand" title="E-Arsip">
-          <span className="brand-mark">EA</span>
+          <span className="brand-mark">
+            <img src="/logo-kementerian-kesehatan.webp" alt="Logo Kementerian Kesehatan" />
+          </span>
           <span className="brand-text">
             <span className="brand-name">E-Arsip</span>
             <span className="brand-sub">Sistem Arsip Digital</span>

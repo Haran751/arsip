@@ -17,15 +17,15 @@ export default function PenyusutanPage() {
   const [mengajukan, setMengajukan] = useState(false);
   const [memutuskan, setMemutuskan] = useState<string | null>(null);
 
-  const pendingIds = useMemo(
+  const terkunciIds = useMemo(
     () =>
       new Set(
-        data.usulan.filter((usulan) => usulan.status === "Diajukan").flatMap((usulan) => usulan.item_ids ?? []),
+        data.usulan.filter((usulan) => usulan.status !== "Ditolak").flatMap((usulan) => usulan.item_ids ?? []),
       ),
     [data.usulan],
   );
 
-  const eligible = dueArsip.filter((arsip) => !pendingIds.has(arsip.id));
+  const eligible = dueArsip.filter((arsip) => !terkunciIds.has(arsip.id));
   const detail = data.usulan.find((usulan) => usulan.id === detailId) ?? null;
   const detailArsip = detail
     ? (detail.item_ids ?? []).map((id) => data.arsip.find((arsip) => arsip.id === id)).filter(Boolean)

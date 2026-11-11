@@ -7,7 +7,7 @@ import Icon from "./icon";
 import CommandPalette from "./command-palette";
 import OfflineBanner from "./offline-banner";
 import { useData } from "@/lib/data-store";
-import { navItems, mobileNavItems } from "@/lib/nav";
+import { navItems, mobileNavItems, bolehTampil } from "@/lib/nav";
 import { inisial } from "@/lib/types";
 
 export default function AppShell({ children }: { children: React.ReactNode }) {
@@ -18,8 +18,9 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
 
-  const current =
-    navItems.find((item) => pathname === item.href || pathname.startsWith(item.href + "/")) ?? navItems[0];
+  const visibleItems = useMemo(() => navItems.filter((item) => bolehTampil(item, user.role)), [user.role]);
+
+  const current = visibleItems.find((item) => pathname === item.href || pathname.startsWith(item.href + "/")) ?? visibleItems[0];
 
   const notifications = useMemo(() => {
     const list: { id: string; title: string; desc: string; href: string; tone: string }[] = [];
@@ -85,8 +86,8 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
         </Link>
 
         <nav className="nav">
-          {navItems.map((item, index) => {
-            const showSection = item.section && item.section !== navItems[index - 1]?.section;
+          {visibleItems.map((item, index) => {
+            const showSection = item.section && item.section !== visibleItems[index - 1]?.section;
             const active = item.href === current.href;
             return (
               <div key={item.href} className="nav-group">

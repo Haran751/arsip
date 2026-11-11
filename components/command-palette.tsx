@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import Icon from "./icon";
-import { navItems } from "@/lib/nav";
+import { navItems, bolehTampil } from "@/lib/nav";
 import { useData } from "@/lib/data-store";
 
 type CommandPaletteProps = {
@@ -17,7 +17,7 @@ type Hasil =
 
 export default function CommandPalette({ open, onClose }: CommandPaletteProps) {
   const router = useRouter();
-  const { data } = useData();
+  const { data, currentUser } = useData();
   const [query, setQuery] = useState("");
   const [active, setActive] = useState(0);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -36,6 +36,7 @@ export default function CommandPalette({ open, onClose }: CommandPaletteProps) {
   const hasil = useMemo<Hasil[]>(() => {
     const kata = query.trim().toLowerCase();
     const nav = navItems
+      .filter((item) => bolehTampil(item, currentUser.role))
       .filter((item) => !kata || `${item.label} ${item.desc}`.toLowerCase().includes(kata))
       .map<Hasil>((item) => ({
         kind: "nav",
@@ -57,7 +58,7 @@ export default function CommandPalette({ open, onClose }: CommandPaletteProps) {
       }));
 
     return [...nav.slice(0, 6), ...arsip];
-  }, [data.arsip, query]);
+  }, [data.arsip, query, currentUser.role]);
 
   const activeIndex = Math.min(active, Math.max(0, hasil.length - 1));
 

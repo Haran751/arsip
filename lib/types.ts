@@ -178,3 +178,9 @@ export function inisial(nama: string) {
     .map((part) => part[0]?.toUpperCase() ?? "")
     .join("");
 }
+
+// Buang nomor urut yang menempel pada teks uraian (mis. "01. ", "2) ", atau
+// "10.01 ") supaya tidak dobel dengan nomor urut yang dirender aplikasi.
+export function bersihkanNomorUraian(item: string) {
+  return item.replace(/^\s*(?:\d{1,3}\s*[.)\-–]\s*)+/, "").trim();
+}

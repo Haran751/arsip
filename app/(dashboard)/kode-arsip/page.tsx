@@ -4,7 +4,7 @@ import { useMemo, useState } from "react";
 import Modal from "@/components/modal";
 import StatusBadge from "@/components/status-badge";
 import TombolMemuat from "@/components/loading-button";
-import { type KodeArsip, type KodeInput } from "@/lib/types";
+import { bersihkanNomorUraian, type KodeArsip, type KodeInput } from "@/lib/types";
 import { useData, type KodeImportRow } from "@/lib/data-store";
 import { downloadCsv, parseCsv } from "@/lib/export";
 
@@ -22,7 +22,7 @@ type FormState = {
 };
 
 function uraianTampil(uraian: string[]) {
-  return (uraian ?? []).map((item) => item.trim()).filter(Boolean);
+  return (uraian ?? []).map((item) => bersihkanNomorUraian(item)).filter(Boolean);
 }
 
 function normalisasiNasib(value: string): KodeInput["nasib_akhir"] | null {
@@ -83,7 +83,7 @@ export default function KodeArsipPage() {
       retensi_aktif_thn: String(item.retensi_aktif_thn),
       retensi_inaktif_thn: String(item.retensi_inaktif_thn),
       nasib_akhir: item.nasib_akhir,
-      uraian: item.uraian.join("\n"),
+      uraian: uraianTampil(item.uraian).join("\n"),
     });
     setFormError("");
     setFormOpen(true);
@@ -183,7 +183,7 @@ export default function KodeArsipPage() {
       const inaktif = Number((row[index.inaktif] ?? "").trim());
       const nasib = normalisasiNasib(row[index.nasib] ?? "");
       const uraian = index.uraian >= 0
-        ? (row[index.uraian] ?? "").split("|").map((item) => item.trim()).filter(Boolean)
+        ? (row[index.uraian] ?? "").split("|").map((item) => bersihkanNomorUraian(item)).filter(Boolean)
         : [];
       const pesan: string[] = [];
 

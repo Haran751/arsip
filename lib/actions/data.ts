@@ -6,7 +6,7 @@ import { prisma, transaksi } from "@/lib/prisma";
 import { hitungRetensi } from "@/lib/retensi";
 import { ConflictError, NotFoundError, ValidationError, gagalAksi } from "@/lib/errors";
 import { sesiPengguna, bolehKelola, tulisLog } from "./guard";
-import type { ActionResult, ArsipInput, FolderInput, KodeInput } from "@/lib/types";
+import { bersihkanNomorUraian, type ActionResult, type ArsipInput, type FolderInput, type KodeInput } from "@/lib/types";
 
 type HasilImport = ActionResult & { created?: number; updated?: number };
 
@@ -27,7 +27,7 @@ function validasiTanggal(value: string) {
 }
 
 function rapikanUraian(uraian: string[] | undefined) {
-  return (uraian ?? []).map((item) => item.trim()).filter(Boolean);
+  return (uraian ?? []).map((item) => bersihkanNomorUraian(item)).filter(Boolean);
 }
 
 function teksAtauNull(nilai: string | undefined) {
